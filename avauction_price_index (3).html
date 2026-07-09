@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>AVauction Price Index</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: #0a0a0a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; padding: 28px 16px; }
+  .wrap { width: 100%; max-width: 420px; }
+
+  /* State tabs */
+  .state-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+  .tab { flex: 1; padding: 10px 4px; border-radius: 50px; border: 1px solid #2a2a2a; font-size: 11px; font-weight: 500; cursor: pointer; text-align: center; color: #666; background: #141414; transition: all 0.2s; user-select: none; display: flex; align-items: center; justify-content: center; gap: 5px; }
+  .tab svg { opacity: 0.5; }
+  .tab.active { background: #1a3a7a; color: #fff; border-color: #2563eb; box-shadow: 0 0 12px rgba(37,99,235,0.3); }
+  .tab.active svg { opacity: 1; }
+
+  /* Grade buttons */
+  .grade-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 20px; }
+  .gb { border-radius: 12px; padding: 12px 6px 10px; cursor: pointer; text-align: center; transition: all 0.15s; user-select: none; border: 1px solid transparent; }
+  .gb .letter { font-size: 28px; font-weight: 600; display: block; margin-bottom: 2px; line-height: 1; }
+  .gb .name { font-size: 8px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+  .gb.a   { background: #0d2218; border-color: #1a5c38; } .gb.a .icon,.gb.a .letter,.gb.a .name { color: #22ee77; }
+  .gb.b   { background: #1a2a08; border-color: #3d6010; } .gb.b .icon,.gb.b .letter,.gb.b .name { color: #aadd00; }
+  .gb.c   { background: #2a1a06; border-color: #6a4010; } .gb.c .icon,.gb.c .letter,.gb.c .name { color: #ff8c00; }
+  .gb.d   { background: #2a0a0a; border-color: #6a1010; } .gb.d .icon,.gb.d .letter,.gb.d .name { color: #ff3333; }
+  .gb.sel-a { background: #0d2218; border-color: #22ee77; box-shadow: 0 0 16px rgba(34,238,119,0.2); } .gb.sel-a .icon,.gb.sel-a .letter,.gb.sel-a .name { color: #22ee77; }
+  .gb.sel-b { background: #1a2a08; border-color: #aadd00; box-shadow: 0 0 16px rgba(170,221,0,0.2);   } .gb.sel-b .icon,.gb.sel-b .letter,.gb.sel-b .name { color: #aadd00; }
+  .gb.sel-c { background: #2a1a06; border-color: #ff8c00; box-shadow: 0 0 16px rgba(255,140,0,0.2);   } .gb.sel-c .icon,.gb.sel-c .letter,.gb.sel-c .name { color: #ff8c00; }
+  .gb.sel-d { background: #2a0a0a; border-color: #ff3333; box-shadow: 0 0 16px rgba(255,51,51,0.2);   } .gb.sel-d .icon,.gb.sel-d .letter,.gb.sel-d .name { color: #ff3333; }
+
+  /* Gauge */
+  .gauge-wrap { width: 100%; max-width: 380px; margin: 0 auto 2px; }
+  .gauge-wrap svg { width: 100%; height: auto; display: block; overflow: visible; }
+
+  .conf-label { text-align: center; font-size: 11px; color: #4a7aaa; margin-bottom: 12px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; }
+
+  /* Price box */
+  .price-box { background: linear-gradient(135deg, #0f1a2e, #0a1020); border: 1px solid #1a3060; border-radius: 14px; padding: 20px 24px; text-align: center; margin: 0 auto 8px; box-shadow: 0 0 24px rgba(37,99,235,0.1); }
+  .range-lbl { font-size: 11px; color: #888; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 10px; }
+  .range-lbl span { font-weight: 700; }
+  .range-val { font-size: 30px; font-weight: 600; color: #fff; letter-spacing: -0.5px; }
+
+  .no-data-box { background: #141414; border: 1px dashed #2a2a2a; border-radius: 14px; padding: 24px 20px; text-align: center; margin: 0 auto 8px; }
+  .no-data-title { font-size: 15px; font-weight: 500; color: #fff; margin-bottom: 6px; }
+  .no-data-sub { font-size: 13px; color: #666; line-height: 1.5; }
+
+  .grade-desc-box { background: #111; border: 1px solid #222; border-radius: 12px; padding: 14px 18px; margin: 0 auto 10px; }
+  .grade-desc-title { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .grade-desc-text { font-size: 13px; color: #aaa; line-height: 1.55; }
+  .powered-by { text-align: center; font-size: 10px; color: #4a7aaa; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 12px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- State tabs -->
+  <div class="state-tabs">
+    <div class="tab" onclick="setState('none')">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><rect x="1" y="8" width="2" height="3" rx="0.5"/><rect x="4.5" y="5" width="2" height="6" rx="0.5" opacity="0.5"/><rect x="8" y="2" width="2" height="9" rx="0.5" opacity="0.3"/></svg>
+      No data
+    </div>
+    <div class="tab" onclick="setState('low')">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><polyline points="1,9 4,5 7,7 11,3"/></svg>
+      Low
+    </div>
+    <div class="tab active" onclick="setState('medium')">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor"><path d="M6 1l1.2 2.4L10 3.8 8 5.7l.5 2.8L6 7.2 3.5 8.5 4 5.7 2 3.8l2.8-.4z" opacity="0.9"/></svg>
+      Medium
+    </div>
+    <div class="tab" onclick="setState('high')">
+      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="6" cy="6" r="4.5"/><polyline points="4,6 5.5,7.5 8,4.5"/></svg>
+      High
+    </div>
+  </div>
+
+  <!-- Grade buttons -->
+  <div class="grade-row">
+    <div class="gb a" id="gb-A" onclick="selectGrade('A')"><span class="letter">A</span><span class="name">Tour</span>
+    </div>
+    <div class="gb sel-b" id="gb-B" onclick="selectGrade('B')"><span class="letter">B</span><span class="name">Rental</span>
+    </div>
+    <div class="gb c" id="gb-C" onclick="selectGrade('C')"><span class="letter">C</span><span class="name">Fair</span>
+    </div>
+    <div class="gb d" id="gb-D" onclick="selectGrade('D')"><span class="letter">D</span><span class="name">Parts</span>
+    </div>
+  </div>
+
+  <!-- Gauge SVG -->
+  <div class="gauge-wrap">
+    <svg viewBox="0 0 320 185" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- Arc gradient: red → orange → yellow → green -->
+        <linearGradient id="arc-grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%"   stop-color="#cc1111"/>
+          <stop offset="25%"  stop-color="#dd6600"/>
+          <stop offset="50%"  stop-color="#cccc00"/>
+          <stop offset="75%"  stop-color="#88cc00"/>
+          <stop offset="100%" stop-color="#11cc55"/>
+        </linearGradient>
+
+        <!-- Needle gradient: dynamic, set by JS based on selected grade -->
+        <linearGradient id="needle-fill-grad" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0%"   stop-color="#aadd00" id="grad-stop-0"/>
+          <stop offset="60%"  stop-color="#ccff00" id="grad-stop-1"/>
+          <stop offset="100%" stop-color="#eeffaa" id="grad-stop-2"/>
+        </linearGradient>
+
+        <!-- Clip for needle fill from bottom -->
+        <clipPath id="conf-clip">
+          <rect id="conf-clip-rect" x="150" y="168" width="20" height="0"/>
+        </clipPath>
+
+        <!-- Arc path for tick marks and gradient stroke -->
+        <!-- Center (160,168), r=130 -->
+      </defs>
+
+      <!-- 
+        Arc: center (160,168), r=130
+        Left end: (30,168), right end: (290,168)
+        Verification: 160-130=30 ✓, 160+130=290 ✓
+        Zone boundaries at 45° intervals from 180°:
+          180°: (30, 168)
+          135°: (160+130*cos135, 168-130*sin135) = (160-91.9, 168-91.9) = (68.1, 76.1)
+           90°: (160, 168-130) = (160, 38)
+           45°: (160+91.9, 76.1) = (251.9, 76.1)
+            0°: (290, 168)
+      -->
+
+      <!-- Main arc — thick, gradient overlay approach -->
+      <!-- Background dark arc -->
+      <path d="M 30 168 A 130 130 0 0 1 290 168" fill="none" stroke="#1a1a1a" stroke-width="32"/>
+
+      <!-- Gradient arc — split into segments to simulate gradient along path -->
+      <!-- D zone: red -->
+      <path d="M 30 168 A 130 130 0 0 1 68.1 76.1" fill="none" stroke="url(#seg-d)" stroke-width="26" stroke-linecap="butt"/>
+      <!-- C zone: orange -->
+      <path d="M 68.1 76.1 A 130 130 0 0 1 160 38" fill="none" stroke="url(#seg-c)" stroke-width="26" stroke-linecap="butt"/>
+      <!-- B zone: yellow-green -->
+      <path d="M 160 38 A 130 130 0 0 1 251.9 76.1" fill="none" stroke="url(#seg-b)" stroke-width="26" stroke-linecap="butt"/>
+      <!-- A zone: green -->
+      <path d="M 251.9 76.1 A 130 130 0 0 1 290 168" fill="none" stroke="url(#seg-a)" stroke-width="26" stroke-linecap="butt"/>
+
+      <defs>
+        <linearGradient id="seg-d" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stop-color="#aa0000"/><stop offset="100%" stop-color="#dd5500"/></linearGradient>
+        <linearGradient id="seg-c" x1="0" y1="1" x2="1" y2="0"><stop offset="0%" stop-color="#dd5500"/><stop offset="100%" stop-color="#cccc00"/></linearGradient>
+        <linearGradient id="seg-b" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#cccc00"/><stop offset="100%" stop-color="#88cc00"/></linearGradient>
+        <linearGradient id="seg-a" x1="0" y1="1" x2="0" y2="1"><stop offset="0%" stop-color="#88cc00"/><stop offset="100%" stop-color="#11cc55"/></linearGradient>
+      </defs>
+
+      <!-- Tick marks along the outer edge of arc, at r=145 (outside the 26px stroke centered at r=130) -->
+      <!-- 36 ticks across 180°, every 5° -->
+      <g id="tick-marks" stroke="rgba(0,0,0,0.5)" stroke-width="0.8">
+        <!-- Generated via JS below -->
+      </g>
+
+      <!-- Zone boundary circles with letters -->
+      <!-- D: lower left at (30,168) — on the arc end -->
+      <circle cx="30" cy="168" r="13" fill="#1a0505" stroke="#cc1111" stroke-width="1.5"/>
+      <text x="30" y="168" fill="#ff3333" font-size="12" font-weight="700" font-family="Arial" text-anchor="middle" dominant-baseline="middle">D</text>
+
+      <!-- C: upper left boundary at (68.1, 76.1) -->
+      <circle cx="68.1" cy="76.1" r="13" fill="#1a0d05" stroke="#dd6600" stroke-width="1.5"/>
+      <text x="68.1" y="76.1" fill="#ff8800" font-size="12" font-weight="700" font-family="Arial" text-anchor="middle" dominant-baseline="middle">C</text>
+
+      <!-- B: top center at (160, 38) -->
+      <circle cx="160" cy="38" r="13" fill="#141a05" stroke="#aacc00" stroke-width="1.5"/>
+      <text x="160" y="38" fill="#ccee00" font-size="12" font-weight="700" font-family="Arial" text-anchor="middle" dominant-baseline="middle">B</text>
+
+      <!-- A: upper right at (251.9, 76.1) -->
+      <circle cx="251.9" cy="76.1" r="13" fill="#051a0d" stroke="#22cc66" stroke-width="1.5"/>
+      <text x="251.9" y="76.1" fill="#22ee77" font-size="12" font-weight="700" font-family="Arial" text-anchor="middle" dominant-baseline="middle">A</text>
+
+      <!-- Needle group — pivot at arc center (160, 168) -->
+      <g id="needle-group" transform="rotate(20, 160, 168)">
+        <!-- Needle shaft — dark rectangle, slightly tapered -->
+        <path d="M 153 164 L 155.5 56 L 164.5 56 L 167 164 Z" fill="#111" stroke="rgba(255,255,255,0.12)" stroke-width="0.75"/>
+        <!-- Gradient fill from bottom -->
+        <path d="M 153 164 L 155.5 56 L 164.5 56 L 167 164 Z" fill="url(#needle-fill-grad)" clip-path="url(#conf-clip)" id="needle-filled" opacity="0"/>
+        <!-- Graduation marks across needle — 7 marks -->
+        <line x1="154" y1="148" x2="166" y2="148" stroke="rgba(0,0,0,0.6)" stroke-width="1.5"/>
+        <line x1="154" y1="136" x2="166" y2="136" stroke="rgba(0,0,0,0.6)" stroke-width="1.5"/>
+        <line x1="154" y1="124" x2="166" y2="124" stroke="rgba(0,0,0,0.6)" stroke-width="1.5"/>
+        <line x1="154" y1="112" x2="166" y2="112" stroke="rgba(0,0,0,0.6)" stroke-width="1.5"/>
+        <line x1="154" y1="100" x2="166" y2="100" stroke="rgba(0,0,0,0.6)" stroke-width="1.5"/>
+        <line x1="154" y1="88"  x2="166" y2="88"  stroke="rgba(0,0,0,0.6)" stroke-width="1.5"/>
+        <line x1="154" y1="76"  x2="166" y2="76"  stroke="rgba(0,0,0,0.6)" stroke-width="1.5"/>
+      </g>
+
+      <!-- Bulb — metallic, solid color matching grade -->
+      <circle cx="160" cy="168" r="12" fill="#0a0a0a" stroke="#333" stroke-width="2" id="bulb-outer"/>
+      <circle cx="160" cy="168" r="8"  fill="#222"   id="bulb-fill"/>
+      <circle cx="160" cy="168" r="4"  fill="#444"   id="bulb-inner"/>
+      <circle cx="158" cy="166" r="1.5" fill="rgba(255,255,255,0.3)"/>
+    </svg>
+  </div>
+
+  <div class="conf-label" id="conf-label">Medium Confidence</div>
+  <div id="price-area"></div>
+  <p class="powered-by">Powered by the AVauction Price Index</p>
+</div>
+
+<script>
+// Draw tick marks along arc outer edge
+(function() {
+  const svg = document.querySelector('svg');
+  const g = document.getElementById('tick-marks');
+  const cx = 160, cy = 168, rInner = 131, rOuter = 141;
+  for (let i = 0; i <= 36; i++) {
+    const angleDeg = 180 - i * 5;
+    const rad = angleDeg * Math.PI / 180;
+    const isMajor = i % 3 === 0;
+    const r1 = isMajor ? rInner - 2 : rInner;
+    const r2 = isMajor ? rOuter + 2 : rOuter;
+    const x1 = cx + r1 * Math.cos(rad);
+    const y1 = cy - r1 * Math.sin(rad);
+    const x2 = cx + r2 * Math.cos(rad);
+    const y2 = cy - r2 * Math.sin(rad);
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+    line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+    line.setAttribute('stroke', 'rgba(0,0,0,0.55)');
+    line.setAttribute('stroke-width', isMajor ? '1.5' : '0.8');
+    g.appendChild(line);
+  }
+})();
+
+const gradeDescs = {
+  A: { title: 'Grade A — Tour Ready', text: 'Gear in excellent working condition. Cosmetically clean with only minor signs of use. Everything functions as new. Suitable for high-profile touring and broadcast productions.' },
+  B: { title: 'Grade B — Rental Ready', text: 'Fully functional with moderate cosmetic wear consistent with professional rental use. May have scuffs, rack rash, or minor finish wear. No impact on performance.' },
+  C: { title: 'Grade C — Fair Condition', text: 'Functional with noticeable cosmetic wear or minor non-critical issues. May require minor servicing. Best suited for fixed installations or backup inventory.' },
+  D: { title: 'Grade D — Parts / Project', text: 'Non-functional or heavily worn. Sold for parts, repair, or salvage. No performance guarantee. Buyer assumes all risk. Inspect before bidding.' }
+};
+const grades = {
+  A: { needle: 72,  range: '$12,500 — $15,200', label: 'Grade A', color: '#22ee77', bulb: '#22ee77', g0: '#11aa55', g1: '#22ee77', g2: '#aaffcc' },
+  B: { needle: 20,  range: '$9,200 — $11,800',  label: 'Grade B', color: '#aadd00', bulb: '#aadd00', g0: '#88aa00', g1: '#aadd00', g2: '#ddff88' },
+  C: { needle: -32, range: '$5,800 — $7,500',   label: 'Grade C', color: '#ff8c00', bulb: '#ff8c00', g0: '#cc5500', g1: '#ff8c00', g2: '#ffcc88' },
+  D: { needle: -72, range: '$2,000 — $3,500',   label: 'Grade D', color: '#ff3333', bulb: '#ff3333', g0: '#aa0000', g1: '#ff3333', g2: '#ff9999' }
+};
+const states = {
+  none:   { fill: 0,    label: 'No Market Data' },
+  low:    { fill: 0.25, label: 'Low Confidence' },
+  medium: { fill: 0.60, label: 'Medium Confidence' },
+  high:   { fill: 1.0,  label: 'High Confidence' }
+};
+
+let currentGrade = 'B', currentState = 'medium';
+const NEEDLE_TOP = 58, NEEDLE_BOTTOM = 164, NEEDLE_H = NEEDLE_BOTTOM - NEEDLE_TOP;
+const DURATION = 750;
+let animFrame = null, animStart = null;
+
+function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
+
+function setCR(fillH) {
+  const cr = document.getElementById('conf-clip-rect');
+  cr.setAttribute('y', NEEDLE_BOTTOM - fillH);
+  cr.setAttribute('height', fillH + 12);
+}
+
+function animateFill(targetFill) {
+  if (animFrame) cancelAnimationFrame(animFrame);
+  animStart = null;
+  const target = NEEDLE_H * targetFill;
+  setCR(0);
+  function step(ts) {
+    if (!animStart) animStart = ts;
+    const progress = Math.min((ts - animStart) / DURATION, 1);
+    setCR(target * easeOut(progress));
+    if (progress < 1) animFrame = requestAnimationFrame(step);
+  }
+  animFrame = requestAnimationFrame(step);
+}
+
+function updateNeedle() {
+  const g = grades[currentGrade], s = states[currentState];
+  document.getElementById('needle-group').setAttribute('transform', `rotate(${g.needle}, 160, 168)`);
+  const hasFill = s.fill > 0;
+  document.getElementById('needle-filled').setAttribute('opacity', hasFill ? '1' : '0');
+  document.getElementById('bulb-fill').setAttribute('fill', hasFill ? g.bulb : '#222');
+  // Update needle gradient to match grade
+  document.getElementById('grad-stop-0').setAttribute('stop-color', g.g0);
+  document.getElementById('grad-stop-1').setAttribute('stop-color', g.g1);
+  document.getElementById('grad-stop-2').setAttribute('stop-color', g.g2);
+  document.getElementById('bulb-inner').setAttribute('fill', hasFill ? 'rgba(0,0,0,0.4)' : '#444');
+  if (hasFill) animateFill(s.fill);
+  else { if (animFrame) cancelAnimationFrame(animFrame); setCR(0); }
+  document.getElementById('conf-label').textContent = s.label;
+  const pa = document.getElementById('price-area');
+  if (currentState === 'none') {
+    const d = gradeDescs[currentGrade];
+    pa.innerHTML = `<div class="no-data-box"><p class="no-data-title">No market data for this model yet</p><p class="no-data-sub">Set your own price — we'll start tracking it as soon as it lists.</p></div>
+    <div class="grade-desc-box"><p class="grade-desc-title" style="color:${grades[currentGrade].color}">${d.title}</p><p class="grade-desc-text">${d.text}</p></div>`;
+  } else {
+    const d = gradeDescs[currentGrade];
+    pa.innerHTML = `<div class="price-box"><p class="range-lbl">MARKET RANGE — <span style="color:${g.color}">${g.label}</span></p><p class="range-val">${g.range}</p></div>
+    <div class="grade-desc-box"><p class="grade-desc-title" style="color:${g.color}">${d.title}</p><p class="grade-desc-text">${d.text}</p></div>`;
+  }
+}
+
+function selectGrade(grade) {
+  ['A','B','C','D'].forEach(x => {
+    document.getElementById('gb-'+x).className = 'gb ' + (x === grade ? 'sel-' + x.toLowerCase() : x.toLowerCase());
+  });
+  currentGrade = grade;
+  updateNeedle();
+}
+
+function setState(state) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    t.classList.toggle('active', ['none','low','medium','high'][i] === state);
+  });
+  currentState = state;
+  updateNeedle();
+}
+
+updateNeedle();
+</script>
+</body>
+</html>
