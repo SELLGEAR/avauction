@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AVauction — Scraper Health Dashboard</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; padding: 24px; }
+:root { --surface-1: #f0efeb; --surface-2: #fff; --border: rgba(0,0,0,0.1); --border-strong: rgba(0,0,0,0.15); --text-primary: #0b0b0b; --text-secondary: #52514e; --text-muted: #898781; --text-success: #0f6e56; --text-warning: #854f0b; --text-danger: #a32d2d; --bg-success: #e1f5ee; --bg-warning: #faeeda; --bg-danger: #fcebeb; --fill-accent: #2a78d6; --on-accent: #fff; --radius: 8px; }
+.dash { max-width: 900px; margin: 0 auto; }
+.top-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; gap: 8px; flex-wrap: wrap; }
+.page-title { font-size: 15px; font-weight: 500; color: var(--text-primary); margin: 0; }
+.page-sub { font-size: 12px; color: var(--text-muted); margin: 2px 0 0; }
+.kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 14px; }
+.kpi { background: var(--surface-2); border-radius: var(--radius); padding: 10px 12px; border: 0.5px solid var(--border); }
+.kpi-label { font-size: 11px; color: var(--text-muted); margin-bottom: 3px; }
+.kpi-val { font-size: 20px; font-weight: 500; color: var(--text-primary); }
+.kpi-val.ok { color: var(--text-success); } .kpi-val.warn { color: var(--text-warning); } .kpi-val.err { color: var(--text-danger); }
+.filters { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+.fb { font-size: 12px; padding: 4px 10px; border-radius: var(--radius); border: 0.5px solid var(--border-strong); background: var(--surface-2); color: var(--text-secondary); cursor: pointer; }
+.fb.on { background: var(--fill-accent); color: var(--on-accent); border-color: var(--fill-accent); }
+.sec-lbl { font-size: 10px; font-weight: 500; color: var(--text-muted); letter-spacing: .08em; text-transform: uppercase; padding: 10px 0 4px; }
+.row-wrap { border-bottom: 0.5px solid var(--border); }
+.row-wrap:last-child { border-bottom: none; }
+.row { display: grid; grid-template-columns: 150px 1fr 90px 72px 28px; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; }
+.row:hover .src-name { color: var(--fill-accent); }
+.src-name { font-size: 13px; color: var(--text-primary); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.src-type { font-size: 10px; color: var(--text-muted); }
+.bar-track { height: 5px; border-radius: 3px; background: var(--border-strong); overflow: hidden; margin-bottom: 3px; }
+.bar-fill { height: 100%; border-radius: 3px; }
+.bar-meta { font-size: 10px; color: var(--text-muted); }
+.rec-col { font-size: 12px; color: var(--text-secondary); text-align: right; }
+.rec-adds { font-size: 10px; color: var(--text-muted); text-align: right; }
+.badge { font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 10px; text-align: center; white-space: nowrap; }
+.b-ok { background: var(--bg-success); color: var(--text-success); }
+.b-warn { background: var(--bg-warning); color: var(--text-warning); }
+.b-err { background: var(--bg-danger); color: var(--text-danger); }
+.b-gray { background: var(--surface-1); color: var(--text-muted); border: 0.5px solid var(--border-strong); }
+.chev { font-size: 14px; color: var(--text-muted); transition: transform .2s; user-select: none; }
+.chev.open { transform: rotate(180deg); }
+.detail { background: var(--surface-1); border-radius: var(--radius); padding: 12px 14px; margin: 0 0 8px; }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin-bottom: 10px; }
+.drow { font-size: 12px; display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 0.5px solid var(--border); }
+.drow:last-child { border-bottom: none; }
+.dlabel { color: var(--text-muted); } .dval { color: var(--text-primary); font-weight: 500; }
+.dval.ok { color: var(--text-success); } .dval.warn { color: var(--text-warning); } .dval.err { color: var(--text-danger); }
+.detail-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.act-btn { font-size: 11px; padding: 4px 10px; border-radius: var(--radius); border: 0.5px solid var(--border-strong); background: var(--surface-2); color: var(--text-secondary); cursor: pointer; }
+.err-list { margin-top: 8px; }
+.err-item { font-size: 11px; color: var(--text-danger); font-family: monospace; padding: 2px 0; border-bottom: 0.5px solid var(--border); }
+.err-item:last-child { border-bottom: none; }
+.err-title { font-size: 11px; font-weight: 500; color: var(--text-secondary); margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="dash">
+  <div class="top-row">
+    <div><p class="page-title">Scraper health</p><p class="page-sub">21 sources · updated 4 min ago</p></div>
+    <button class="act-btn" style="font-size:12px"><i class="ti ti-refresh" style="font-size:13px;vertical-align:-1px;margin-right:4px"></i>Run all now</button>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-label">Active</div><div class="kpi-val ok">13</div></div>
+    <div class="kpi"><div class="kpi-label">Warning</div><div class="kpi-val warn">3</div></div>
+    <div class="kpi"><div class="kpi-label">Failed</div><div class="kpi-val err">1</div></div>
+    <div class="kpi"><div class="kpi-label">Unverified</div><div class="kpi-val">4</div></div>
+  </div>
+  <div class="filters">
+    <button class="fb on" onclick="filter('all',this)">All (21)</button>
+    <button class="fb" onclick="filter('active',this)">Active (13)</button>
+    <button class="fb" onclick="filter('warn',this)">Warning (3)</button>
+    <button class="fb" onclick="filter('error',this)">Failed (1)</button>
+    <button class="fb" onclick="filter('verify',this)">Unverified (4)</button>
+  </div>
+  <div id="list"></div>
+</div>
+<script>
+const S=[
+  {name:'eBay API',type:'Official API · sold prices',status:'active',h:98,rec:'24,821',adds:'+1,247',last:'2 hrs ago',next:'in 4 hrs',errs:0,coverage:'61%',freshness:'1.2 days',section:'Tier 1 — Sold prices',errUrls:[]},
+  {name:'Reverb API',type:'Official API · sold prices',status:'active',h:96,rec:'18,442',adds:'+891',last:'2 hrs ago',next:'in 4 hrs',errs:0,coverage:'48%',freshness:'1.4 days',section:null,errUrls:[]},
+  {name:'AVGear auctions',type:'Scraper · post-auction results',status:'verify',h:0,rec:'—',adds:'—',last:'Never',next:'After verification',errs:0,coverage:'—',freshness:'—',section:null,errUrls:[]},
+  {name:'SoldTiger',type:'Scraper · post-auction results',status:'verify',h:0,rec:'—',adds:'—',last:'Never',next:'After verification',errs:0,coverage:'—',freshness:'—',section:null,errUrls:[]},
+  {name:'AVLAuction',type:'Scraper · post-auction · EU',status:'verify',h:0,rec:'—',adds:'—',last:'Never',next:'After verification',errs:0,coverage:'—',freshness:'—',section:null,errUrls:[]},
+  {name:'LiveAuctioneers',type:'Scraper · confirmed public',status:'active',h:84,rec:'6,211',adds:'+312',last:'6 hrs ago',next:'in 18 hrs',errs:4,coverage:'29%',freshness:'3.1 days',section:null,errUrls:['liveauctioneers.com/auction/123/lot/44','liveauctioneers.com/auction/119/lot/87']},
+  {name:'West Auctions',type:'Scraper · post-auction results',status:'verify',h:0,rec:'—',adds:'—',last:'Never',next:'After verification',errs:0,coverage:'—',freshness:'—',section:null,errUrls:[]},
+  {name:'GearSource',type:'Scraper · dealer asking',status:'active',h:91,rec:'4,211',adds:'+203',last:'3 hrs ago',next:'in 9 hrs',errs:2,coverage:'38%',freshness:'2.0 days',section:'Tier 2 — Dealer asking',errUrls:['gearsource.com/listing/49821']},
+  {name:'Gearsupply',type:'Scraper · dealer asking',status:'active',h:88,rec:'2,847',adds:'+187',last:'3 hrs ago',next:'in 9 hrs',errs:1,coverage:'31%',freshness:'2.1 days',section:null,errUrls:[]},
+  {name:'SoundBroker',type:'Scraper · dealer asking',status:'active',h:79,rec:'1,904',adds:'+98',last:'4 hrs ago',next:'in 8 hrs',errs:3,coverage:'22%',freshness:'2.8 days',section:null,errUrls:['soundbroker.com/listing/78811']},
+  {name:'UsedAVGear',type:'Scraper · Nationwide Video',status:'active',h:95,rec:'1,204',adds:'+44',last:'3 hrs ago',next:'in 9 hrs',errs:0,coverage:'14%',freshness:'1.9 days',section:null,errUrls:[]},
+  {name:'Clair Used Gear',type:'Scraper · Clair Global',status:'active',h:93,rec:'892',adds:'+31',last:'3 hrs ago',next:'in 9 hrs',errs:0,coverage:'10%',freshness:'2.0 days',section:null,errUrls:[]},
+  {name:'Solaris Network',type:'Scraper · international',status:'warn',h:52,rec:'1,102',adds:'+8',last:'6 days ago',next:'Overdue',errs:18,coverage:'17%',freshness:'6.4 days',section:null,errUrls:['solarisnetwork.com/product/l-acoustics-k2','solarisnetwork.com/product/barco-hdx']},
+  {name:'CUE Sale',type:'Scraper · EUR · European',status:'active',h:87,rec:'743',adds:'+29',last:'4 hrs ago',next:'in 8 hrs',errs:1,coverage:'12%',freshness:'2.3 days',section:null,errUrls:[]},
+  {name:'ChurchGear',type:'Scraper · Nashville',status:'active',h:82,rec:'612',adds:'+19',last:'5 hrs ago',next:'in 7 hrs',errs:2,coverage:'8%',freshness:'2.7 days',section:null,errUrls:[]},
+  {name:'Audiogon',type:'Scraper · marketplace asking',status:'warn',h:41,rec:'987',adds:'+12',last:'6 days ago',next:'Overdue',errs:31,coverage:'19%',freshness:'6.1 days',section:'Tier 3 — Marketplace asking',errUrls:['audiogon.com/listings/yamaha-cl5','audiogon.com/listings/digico-sd12','audiogon.com/listings/shure-axient']},
+  {name:'Sweetwater GX',type:'Scraper · Live Sound only',status:'active',h:76,rec:'1,441',adds:'+67',last:'4 hrs ago',next:'in 8 hrs',errs:5,coverage:'21%',freshness:'3.1 days',section:null,errUrls:['sweetwater.com/store/detail/ql5']},
+  {name:'Guitar Center Used',type:'Scraper · Pro Audio only',status:'error',h:8,rec:'1,204',adds:'+0',last:'2 days ago',next:'Overdue — check logs',errs:47,coverage:'18%',freshness:'2.0 days',section:null,errUrls:['guitarcenter.com/used/pro-audio/mixers','guitarcenter.com/used/pro-audio/amplifiers','guitarcenter.com/used/pro-audio/speakers']},
+  {name:'B&H Photo Used',type:'Scraper · Pro Audio + Video',status:'active',h:89,rec:'1,891',adds:'+94',last:'3 hrs ago',next:'in 9 hrs',errs:2,coverage:'24%',freshness:'2.1 days',section:null,errUrls:[]},
+  {name:'HifiShark',type:'Scraper · 600+ aggregated sources',status:'warn',h:63,rec:'3,204',adds:'+88',last:'1 day ago',next:'in 23 hrs',errs:12,coverage:'32%',freshness:'4.2 days',section:null,errUrls:['hifishark.com/search?q=yamaha+cl5']},
+  {name:'USAudioMart',type:'Scraper · individual sellers',status:'active',h:77,rec:'1,108',adds:'+54',last:'5 hrs ago',next:'in 7 hrs',errs:3,coverage:'16%',freshness:'2.9 days',section:null,errUrls:[]},
+];
+const barCol={active:'#1baf7a',warn:'#eda100',error:'#e34948',verify:'#888781'};
+const badgeCls={active:'b-ok',warn:'b-warn',error:'b-err',verify:'b-gray'};
+const badgeTxt={active:'Active',warn:'Warning',error:'Failed',verify:'Unverified'};
+const openRows=new Set();
+let current=S;
+
+function render(data){
+  const el=document.getElementById('list');
+  let html='';let lastSec=null;
+  data.forEach(s=>{
+    const idx=S.indexOf(s);
+    if(s.section&&s.section!==lastSec){html+=`<div class="sec-lbl">${s.section}</div>`;lastSec=s.section;}
+    const fw=s.status==='verify'?0:s.h;
+    const isOpen=openRows.has(idx);
+    const errColor=s.errs===0?'ok':s.errs<5?'warn':'err';
+    html+=`<div class="row-wrap" data-status="${s.status}">
+      <div class="row" onclick="toggle(${idx})">
+        <div><div class="src-name">${s.name}</div><div class="src-type">${s.type}</div></div>
+        <div>
+          <div class="bar-track"><div class="bar-fill" style="width:${fw}%;background:${barCol[s.status]}"></div></div>
+          <div class="bar-meta">${s.status!=='verify'?s.h+'% health · last run: '+s.last:'Needs manual verification before building'}</div>
+        </div>
+        <div><div class="rec-col">${s.rec}</div><div class="rec-adds">${s.adds} this week</div></div>
+        <div><span class="badge ${badgeCls[s.status]}">${badgeTxt[s.status]}</span></div>
+        <div class="chev ${isOpen?'open':''}"><i class="ti ti-chevron-down"></i></div>
+      </div>`;
+    if(isOpen){
+      html+=`<div class="detail">`;
+      if(s.status==='verify'){
+        html+=`<div style="font-size:12px;color:#52514e;margin-bottom:8px">Manually verify that sold prices are publicly visible without login before building this scraper.</div>`;
+      } else {
+        html+=`<div class="detail-grid">
+          <div>
+            <div class="drow"><span class="dlabel">Last successful run</span><span class="dval">${s.last}</span></div>
+            <div class="drow"><span class="dlabel">Next scheduled run</span><span class="dval">${s.next}</span></div>
+            <div class="drow"><span class="dlabel">Errors this week</span><span class="dval ${errColor}">${s.errs}</span></div>
+          </div>
+          <div>
+            <div class="drow"><span class="dlabel">Model coverage</span><span class="dval">${s.coverage}</span></div>
+            <div class="drow"><span class="dlabel">Avg data freshness</span><span class="dval">${s.freshness}</span></div>
+            <div class="drow"><span class="dlabel">Total records</span><span class="dval">${s.rec}</span></div>
+          </div>
+        </div>`;
+      }
+      if(s.errUrls.length){
+        html+=`<div class="err-list"><div class="err-title">Recent errors</div>`;
+        s.errUrls.forEach(u=>{html+=`<div class="err-item">${u}</div>`;});
+        html+=`</div>`;
+      }
+      html+=`<div class="detail-actions">
+        <button class="act-btn"><i class="ti ti-player-play" style="font-size:11px;vertical-align:-1px;margin-right:3px"></i>Run now</button>
+        <button class="act-btn"><i class="ti ti-player-pause" style="font-size:11px;vertical-align:-1px;margin-right:3px"></i>Pause</button>
+        <button class="act-btn"><i class="ti ti-settings" style="font-size:11px;vertical-align:-1px;margin-right:3px"></i>Settings</button>
+        ${s.errs>0?'<button class="act-btn"><i class="ti ti-x" style="font-size:11px;vertical-align:-1px;margin-right:3px"></i>Clear errors</button>':''}
+      </div></div>`;
+    }
+    html+='</div>';
+  });
+  el.innerHTML=html;
+}
+
+function toggle(idx){
+  if(openRows.has(idx))openRows.delete(idx);else openRows.add(idx);
+  render(current);
+}
+
+function filter(type,btn){
+  document.querySelectorAll('.fb').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  current=type==='all'?S:S.filter(s=>s.status===type);
+  render(current);
+}
+
+render(S);
+</script>
+</body>
+</html>
