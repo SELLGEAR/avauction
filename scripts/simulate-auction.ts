@@ -75,7 +75,7 @@ async function main() {
       created.authUserIds.push(data.user.id);
       const { error: uErr } = await db
         .from("users")
-        .insert({ id: data.user.id, email, role: "buyer" });
+        .upsert({ id: data.user.id, email, role: "buyer" });
       if (uErr) throw uErr;
     }
     const [alice, bob, carol] = created.authUserIds;

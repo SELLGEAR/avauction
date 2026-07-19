@@ -92,7 +92,7 @@ async function main() {
     const { data: au, error: auErr } = await db.auth.admin.createUser({ email, email_confirm: true });
     if (auErr) throw auErr;
     created.authUserIds.push(au.user.id);
-    await db.from('users').insert({ id: au.user.id, email, role: 'seller' });
+    await db.from('users').upsert({ id: au.user.id, email, role: 'seller' });
     const { data: seller } = await db
       .from('sellers')
       .insert({ user_id: au.user.id, business_name: 'ZZTEST_SELLER', account_type: 'business' })

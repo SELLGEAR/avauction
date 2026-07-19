@@ -64,7 +64,7 @@ async function main() {
       const { data, error } = await db.auth.admin.createUser({ email, email_confirm: true });
       if (error) throw error;
       created.authUserIds.push(data.user.id);
-      const { error: uErr } = await db.from("users").insert({ id: data.user.id, email, role: "buyer" });
+      const { error: uErr } = await db.from("users").upsert({ id: data.user.id, email, role: "buyer" });
       if (uErr) throw uErr;
     }
     const [sellerUser, winner, loser] = created.authUserIds;

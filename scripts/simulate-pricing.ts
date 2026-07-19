@@ -201,7 +201,7 @@ async function main() {
     });
     if (auErr) throw auErr;
     created.authUserIds.push(au.user.id);
-    await db.from('users').insert({ id: au.user.id, email: au.user.email, role: 'buyer' });
+    await db.from('users').upsert({ id: au.user.id, email: au.user.email, role: 'buyer' });
     const { data: seller } = await db
       .from('sellers')
       .insert({ user_id: au.user.id, business_name: 'ZZTEST_SELLER', account_type: 'business' })
