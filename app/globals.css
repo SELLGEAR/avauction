@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@theme {
+  /* Deep dark base per design direction */
+  --color-background: #0d0d0d;
+  --color-foreground: #ededed;
+
+  /* Auction and buy-it-now accent colors are TBD — Sean and Tom to decide
+     from 3 variants. Placeholders so components can reference the tokens now
+     and the real values drop in with a one-line change later. */
+  --color-auction-accent: #22c55e;
+  --color-buynow-accent: #3b82f6;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}

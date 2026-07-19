@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AVauction — The Professional AV Gear Marketplace</title>
+  <meta name="description" content="Weekly auctions for professional AV gear. Buy and sell from verified rental houses, production companies, and integrators." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #070A12;
+      --surface:   #0D1120;
+      --surface2:  #13192B;
+      --border:    #1E2840;
+      --amber:     #4B8EF5;
+      --amber-dim: #3470D0;
+      --amber-glow:rgba(75,142,245,.12);
+      --text:      #EDF1FA;
+      --muted:     #7A8BAA;
+      --subtle:    #2C3650;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── NAV ───────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 40px;
+      height: 64px;
+      background: rgba(7,10,18,.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none;
+    }
+    .nav-logo-mark {
+      width: 32px; height: 32px;
+      background: var(--amber);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 13px; color: #070A12;
+      letter-spacing: -.5px;
+    }
+    .nav-logo-text {
+      font-weight: 600; font-size: 15px; color: var(--text);
+      letter-spacing: -.3px;
+    }
+    .nav-logo-text span { color: var(--amber); }
+
+    .nav-cta {
+      display: inline-flex; align-items: center;
+      padding: 8px 20px;
+      background: var(--amber);
+      color: #070A12;
+      font-weight: 600; font-size: 13px;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: background .2s;
+    }
+    .nav-cta:hover { background: var(--amber-dim); }
+
+    /* ── HERO ──────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      text-align: center;
+      padding: 120px 24px 80px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 64px 64px;
+      opacity: .3;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black 30%, transparent 100%);
+    }
+
+    .hero-glow {
+      position: absolute;
+      top: 10%; left: 50%; transform: translateX(-50%);
+      width: 600px; height: 400px;
+      background: radial-gradient(ellipse, rgba(75,142,245,.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 14px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      font-size: 12px; font-weight: 500; color: var(--muted);
+      letter-spacing: .5px; text-transform: uppercase;
+      margin-bottom: 28px;
+      position: relative;
+    }
+    .hero-badge-dot {
+      width: 6px; height: 6px;
+      background: var(--amber);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .5; transform: scale(1.3); }
+    }
+
+    .hero h1 {
+      font-family: 'DM Serif Display', Georgia, serif;
+      font-size: clamp(40px, 7vw, 76px);
+      line-height: 1.08;
+      letter-spacing: -.5px;
+      color: var(--text);
+      max-width: 820px;
+      margin-bottom: 20px;
+      position: relative;
+    }
+    .hero h1 em {
+      font-style: italic;
+      color: var(--amber);
+    }
+
+    .hero-sub {
+      font-size: clamp(16px, 2vw, 19px);
+      color: var(--muted);
+      max-width: 540px;
+      line-height: 1.65;
+      margin-bottom: 44px;
+      position: relative;
+    }
+
+    .hero-form {
+      display: flex; gap: 10px;
+      max-width: 460px; width: 100%;
+      position: relative;
+    }
+    .hero-form input {
+      flex: 1;
+      padding: 14px 18px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .hero-form input::placeholder { color: var(--subtle); }
+    .hero-form input:focus { border-color: var(--amber); }
+
+    .btn-primary {
+      padding: 14px 24px;
+      background: var(--amber);
+      color: #070A12;
+      font-weight: 600; font-size: 14px;
+      border: none; border-radius: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+      font-family: 'Inter', sans-serif;
+      transition: background .2s, transform .1s;
+    }
+    .btn-primary:hover { background: var(--amber-dim); }
+    .btn-primary:active { transform: scale(.98); }
+
+    .hero-note {
+      margin-top: 14px;
+      font-size: 12px; color: var(--subtle);
+      position: relative;
+    }
+
+    .hero-stats {
+      display: flex; gap: 48px;
+      margin-top: 72px;
+      padding-top: 40px;
+      border-top: 1px solid var(--border);
+      position: relative;
+    }
+    .stat { text-align: center; }
+    .stat-num {
+      font-family: 'DM Serif Display', serif;
+      font-size: 32px;
+      color: var(--text);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .stat-num span { color: var(--amber); }
+    .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+
+    /* ── SECTION UTILITY ───────────────────────────── */
+    section { padding: 100px 24px; }
+
+    .container { max-width: 1080px; margin: 0 auto; }
+
+    .section-label {
+      font-size: 11px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1.5px;
+      color: var(--amber);
+      margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1.15;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+    .section-title em { font-style: italic; color: var(--amber); }
+
+    .section-sub {
+      font-size: 17px; color: var(--muted);
+      line-height: 1.7;
+      max-width: 540px;
+    }
+
+    /* ── HOW IT WORKS ──────────────────────────────── */
+    .how-section { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+
+    .how-header { margin-bottom: 64px; }
+
+    .cycle {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 0;
+      position: relative;
+    }
+
+    .cycle::before {
+      content: '';
+      position: absolute;
+      top: 28px; left: 10%; right: 10%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border) 20%, var(--border) 80%, transparent);
+    }
+
+    .cycle-day {
+      display: flex; flex-direction: column; align-items: center;
+      text-align: center;
+      padding: 0 12px;
+      position: relative;
+    }
+
+    .day-icon {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 1;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      transition: border-color .2s;
+    }
+
+    .cycle-day.highlight .day-icon {
+      background: var(--amber-glow);
+      border-color: var(--amber);
+    }
+    .cycle-day.highlight .day-label { color: var(--amber); }
+
+    .day-label {
+      font-weight: 600; font-size: 13px;
+      color: var(--muted);
+      text-transform: uppercase; letter-spacing: .8px;
+      margin-bottom: 8px;
+    }
+
+    .day-name {
+      font-size: 16px; font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .day-desc {
+      font-size: 13px; color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .how-extra {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 64px;
+    }
+
+    .extra-card {
+      padding: 28px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .extra-card-icon {
+      font-size: 24px; margin-bottom: 14px;
+    }
+    .extra-card h4 {
+      font-weight: 600; font-size: 15px;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+    .extra-card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    /* ── TRUST SECTION ─────────────────────────────── */
+    .trust-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 56px;
+    }
+
+    .trust-card {
+      padding: 36px 32px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color .2s;
+    }
+    .trust-card:hover { border-color: var(--amber); }
+    .trust-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--amber), transparent);
+      opacity: 0;
+      transition: opacity .3s;
+    }
+    .trust-card:hover::before { opacity: 1; }
+
+    .trust-icon {
+      width: 52px; height: 52px;
+      background: var(--amber-glow);
+      border: 1px solid rgba(75,142,245,.25);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+
+    .trust-card h3 {
+      font-weight: 600; font-size: 18px;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+    .trust-card p { font-size: 14px; color: var(--muted); line-height: 1.65; }
+
+    /* ── AUDIENCE SECTION ──────────────────────────── */
+    .audience-section { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+
+    .audience-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 56px;
+    }
+
+    .audience-card {
+      padding: 32px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+
+    .audience-card-header {
+      display: flex; align-items: center; gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .audience-avatar {
+      width: 48px; height: 48px;
+      background: var(--surface2);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      border: 1px solid var(--border);
+    }
+
+    .audience-title { font-weight: 600; font-size: 15px; }
+    .audience-type { font-size: 12px; color: var(--muted); }
+
+    .audience-card ul {
+      list-style: none;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .audience-card ul li {
+      display: flex; align-items: flex-start; gap: 10px;
+      font-size: 13px; color: var(--muted); line-height: 1.5;
+    }
+    .audience-card ul li::before {
+      content: '✓';
+      color: var(--amber);
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ── CTA SECTION ───────────────────────────────── */
+    .cta-section {
+      text-align: center;
+      padding: 120px 24px;
+    }
+
+    .cta-box {
+      max-width: 620px; margin: 0 auto;
+      padding: 64px 48px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-box::before {
+      content: '';
+      position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
+      width: 400px; height: 200px;
+      background: radial-gradient(ellipse, rgba(75,142,245,.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .cta-box h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(28px, 4vw, 40px);
+      line-height: 1.2;
+      margin-bottom: 14px;
+      position: relative;
+    }
+    .cta-box h2 em { font-style: italic; color: var(--amber); }
+
+    .cta-box p {
+      color: var(--muted); font-size: 16px;
+      margin-bottom: 36px;
+      line-height: 1.65;
+      position: relative;
+    }
+
+    .cta-form {
+      display: flex; gap: 10px;
+      margin-bottom: 14px;
+      position: relative;
+    }
+    .cta-form input {
+      flex: 1;
+      padding: 14px 18px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .cta-form input::placeholder { color: var(--subtle); }
+    .cta-form input:focus { border-color: var(--amber); }
+
+    .cta-note { font-size: 12px; color: var(--subtle); position: relative; }
+
+    /* ── FOOTER ────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 48px 40px 36px;
+    }
+
+    .footer-inner {
+      max-width: 1080px; margin: 0 auto;
+      display: flex; flex-direction: column; gap: 32px;
+    }
+
+    .footer-top {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 40px;
+    }
+
+    .footer-brand { max-width: 300px; }
+    .footer-brand .nav-logo { margin-bottom: 14px; display: inline-flex; }
+    .footer-brand p { font-size: 13px; color: var(--muted); line-height: 1.65; }
+
+    .footer-links {
+      display: flex; gap: 64px;
+    }
+
+    .footer-col h4 {
+      font-size: 12px; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: var(--subtle);
+      margin-bottom: 16px;
+    }
+
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .footer-col ul li a {
+      font-size: 13px; color: var(--muted);
+      text-decoration: none;
+      transition: color .2s;
+    }
+    .footer-col ul li a:hover { color: var(--text); }
+
+    .footer-bottom {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      font-size: 12px; color: var(--subtle);
+    }
+
+    /* ── SUCCESS STATE ─────────────────────────────── */
+    .success-msg {
+      display: none;
+      align-items: center; gap: 10px;
+      padding: 14px 20px;
+      background: rgba(75,142,245,.1);
+      border: 1px solid rgba(75,142,245,.3);
+      border-radius: 8px;
+      font-size: 14px; color: var(--amber);
+      font-weight: 500;
+    }
+    .success-msg.show { display: flex; }
+
+    /* ── RESPONSIVE ────────────────────────────────── */
+    @media (max-width: 768px) {
+      nav { padding: 0 20px; }
+
+      .hero-stats { gap: 28px; flex-wrap: wrap; justify-content: center; }
+
+      .cycle {
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+      .cycle::before { display: none; }
+      .cycle-day:last-child { grid-column: 1 / -1; }
+
+      .how-extra { grid-template-columns: 1fr; }
+
+      .trust-grid { grid-template-columns: 1fr; }
+      .audience-grid { grid-template-columns: 1fr; }
+
+      .footer-top { flex-direction: column; }
+      .footer-links { gap: 40px; }
+
+      .hero-form { flex-direction: column; }
+      .cta-form { flex-direction: column; }
+
+      .cta-box { padding: 40px 24px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a href="#" class="nav-logo">
+      <div class="nav-logo-mark">AV</div>
+      <span class="nav-logo-text">AV<span>auction</span></span>
+    </a>
+    <a href="#waitlist" class="nav-cta">Get Early Access</a>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-grid"></div>
+    <div class="hero-glow"></div>
+
+    <div class="hero-badge">
+      <span class="hero-badge-dot"></span>
+      Pre-launch · Waitlist now open
+    </div>
+
+    <h1>The <em>professional</em> marketplace<br>for AV gear.</h1>
+
+    <p class="hero-sub">
+      Weekly auctions designed for AV rental houses, production companies, and integrators. Verified sellers, fair prices, and zero noise.
+    </p>
+
+    <form class="hero-form" onsubmit="handleSubmit(event, 'hero-success')">
+      <input type="email" placeholder="your@company.com" required />
+      <button type="submit" class="btn-primary">Get Early Access</button>
+    </form>
+    <div id="hero-success" class="success-msg">
+      <span>✓</span> You're on the list — we'll be in touch before launch.
+    </div>
+    <p class="hero-note">No spam. Unsubscribe anytime. Early access is free.</p>
+
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-num">52<span>×</span></div>
+        <div class="stat-label">Auctions per year</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">B2B</div>
+        <div class="stat-label">Buyers &amp; sellers only</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">100<span>%</span></div>
+        <div class="stat-label">Verified sellers</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how-section">
+    <div class="container">
+      <div class="how-header">
+        <div class="section-label">The Weekly Cycle</div>
+        <h2 class="section-title">How AVauction works</h2>
+        <p class="section-sub">Every week follows the same structured rhythm — so you always know exactly when to browse, bid, and win.</p>
+      </div>
+
+      <div class="cycle">
+        <div class="cycle-day highlight">
+          <div class="day-icon">👁</div>
+          <div class="day-label">Monday</div>
+          <div class="day-name">Preview</div>
+          <div class="day-desc">New lots go live. Browse the week's inventory, download spec sheets, and save your shortlist.</div>
+        </div>
+        <div class="cycle-day">
+          <div class="day-icon">📋</div>
+          <div class="day-label">Tuesday</div>
+          <div class="day-name">Bidding Opens</div>
+          <div class="day-desc">Place opening bids. Set your max and let our proxy bidding handle the rest automatically.</div>
+        </div>
+        <div class="cycle-day">
+          <div class="day-icon">📈</div>
+          <div class="day-label">Wednesday</div>
+          <div class="day-name">Active Bidding</div>
+          <div class="day-desc">Price discovery in full swing. Monitor your lots and adjust strategy in real time.</div>
+        </div>
+        <div class="cycle-day">
+          <div class="day-icon">🔔</div>
+          <div class="day-label">Thursday</div>
+          <div class="day-name">Final Push</div>
+          <div class="day-desc">Outbid alerts go out. Last chance to review and raise before the Friday close.</div>
+        </div>
+        <div class="cycle-day highlight">
+          <div class="day-icon">🔨</div>
+          <div class="day-label">Friday</div>
+          <div class="day-name">Auction Closes</div>
+          <div class="day-desc">Bidding ends at 5 PM ET. Winners are notified immediately and invoiced within the hour.</div>
+        </div>
+      </div>
+
+      <div class="how-extra">
+        <div class="extra-card">
+          <div class="extra-card-icon">🏷️</div>
+          <h4>Buy It Now</h4>
+          <p>Don't want to wait for Friday? Sellers can list gear at a fixed price — visible any day, available until sold.</p>
+        </div>
+        <div class="extra-card">
+          <div class="extra-card-icon">🤖</div>
+          <h4>Proxy Bidding</h4>
+          <p>Set your maximum and walk away. The system bids on your behalf, raising only as needed — never over your limit.</p>
+        </div>
+        <div class="extra-card">
+          <div class="extra-card-icon">📦</div>
+          <h4>Logistics Coordination</h4>
+          <p>We connect buyers with vetted freight partners who handle AV gear specifically — crated, insured, and trackable.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRUST -->
+  <section>
+    <div class="container">
+      <div style="margin-bottom: 56px;">
+        <div class="section-label">Built for Professionals</div>
+        <h2 class="section-title">Trust is the <em>product</em></h2>
+        <p class="section-sub">Every part of AVauction is built around giving both sides of a deal complete confidence — before, during, and after the transaction.</p>
+      </div>
+
+      <div class="trust-grid">
+        <div class="trust-card">
+          <div class="trust-icon">🔒</div>
+          <h3>Escrow Protection</h3>
+          <p>Funds are held in escrow until the buyer confirms receipt and condition. No payment until you're satisfied — no exceptions.</p>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon">✅</div>
+          <h3>Verified Sellers</h3>
+          <p>Every seller undergoes business verification before their first listing. We confirm entity, licensing, and transaction history — no anonymous accounts.</p>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon">📊</div>
+          <h3>Condition Grading</h3>
+          <p>Standardized A–D grading with photo evidence requirements. You know exactly what "excellent condition" means on AVauction — because we define it.</p>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon">💬</div>
+          <h3>Pre-Auction Q&amp;A</h3>
+          <p>Ask sellers anything during the preview window. Questions and answers are public so the whole buyer pool benefits from the transparency.</p>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon">⭐</div>
+          <h3>Seller Reputation</h3>
+          <p>Verified transaction history, response-rate tracking, and dispute outcomes are all visible on seller profiles. Reputation compounds over time.</p>
+        </div>
+        <div class="trust-card">
+          <div class="trust-icon">🛡️</div>
+          <h3>Dispute Resolution</h3>
+          <p>Dedicated resolution team with a 48-hour response SLA. Disputes are mediated by AV industry professionals — not generalist support staff.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- AUDIENCE -->
+  <section class="audience-section">
+    <div class="container">
+      <div style="margin-bottom: 56px;">
+        <div class="section-label">Who It's For</div>
+        <h2 class="section-title">Built for the <em>industry</em></h2>
+        <p class="section-sub">AVauction is a closed B2B marketplace. You won't find casual resellers or consumer listings here.</p>
+      </div>
+
+      <div class="audience-grid">
+        <div class="audience-card">
+          <div class="audience-card-header">
+            <div class="audience-avatar">🎬</div>
+            <div>
+              <div class="audience-title">AV Rental Houses</div>
+              <div class="audience-type">Buy &amp; sell</div>
+            </div>
+          </div>
+          <ul>
+            <li>Offload aging inventory before it depreciates</li>
+            <li>Source replacement units quickly when gear fails</li>
+            <li>Find compatible backup stock for large shows</li>
+            <li>Sell fleet upgrades as a package lot</li>
+          </ul>
+        </div>
+        <div class="audience-card">
+          <div class="audience-card-header">
+            <div class="audience-avatar">🎥</div>
+            <div>
+              <div class="audience-title">Production Companies</div>
+              <div class="audience-type">Buy &amp; sell</div>
+            </div>
+          </div>
+          <ul>
+            <li>Acquire project-specific gear at below-retail cost</li>
+            <li>Liquidate post-production surplus efficiently</li>
+            <li>Build out camera and staging packages on budget</li>
+            <li>One-off deals with full escrow coverage</li>
+          </ul>
+        </div>
+        <div class="audience-card">
+          <div class="audience-card-header">
+            <div class="audience-avatar">🏗️</div>
+            <div>
+              <div class="audience-title">AV Integrators</div>
+              <div class="audience-type">Buy &amp; sell</div>
+            </div>
+          </div>
+          <ul>
+            <li>Source discontinued equipment for legacy installs</li>
+            <li>Flip project overruns and returned gear</li>
+            <li>Find certified pre-owned for budget-conscious clients</li>
+            <li>Access inventory from verified trade sellers only</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section" id="waitlist">
+    <div class="container">
+      <div class="cta-box">
+        <h2>Be first when<br>we <em>go live</em></h2>
+        <p>We're opening to a limited group of verified AV professionals before public launch. Join the waitlist for priority access, founding-member pricing, and zero listing fees for your first 90 days.</p>
+        <form class="cta-form" onsubmit="handleSubmit(event, 'cta-success')">
+          <input type="email" placeholder="your@company.com" required />
+          <button type="submit" class="btn-primary">Join Waitlist</button>
+        </form>
+        <div id="cta-success" class="success-msg">
+          <span>✓</span> You're in — we'll be in touch before we open the doors.
+        </div>
+        <p class="cta-note">No spam. Unsubscribe anytime. Early access and first 90-day listing fee waiver for founding members.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <a href="#" class="nav-logo">
+            <div class="nav-logo-mark">AV</div>
+            <span class="nav-logo-text">AV<span>auction</span></span>
+          </a>
+          <p>The professional B2B marketplace for AV equipment. Weekly auctions, verified sellers, and escrow-protected transactions.</p>
+        </div>
+        <div class="footer-links">
+          <div class="footer-col">
+            <h4>Platform</h4>
+            <ul>
+              <li><a href="#">How It Works</a></li>
+              <li><a href="#">Weekly Auctions</a></li>
+              <li><a href="#">Buy It Now</a></li>
+              <li><a href="#">Seller Verification</a></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>Company</h4>
+            <ul>
+              <li><a href="#">About</a></li>
+              <li><a href="#">Contact</a></li>
+              <li><a href="#">Privacy Policy</a></li>
+              <li><a href="#">Terms of Service</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 AVauction. All rights reserved.</span>
+        <span>hello@avauction.com</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    function handleSubmit(e, successId) {
+      e.preventDefault();
+      const form = e.target;
+      const email = form.querySelector('input[type="email"]').value;
+      form.style.display = 'none';
+      document.getElementById(successId).classList.add('show');
+      console.log('Waitlist signup:', email);
+    }
+
+    // Subtle entrance animations
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.trust-card, .audience-card, .cycle-day, .extra-card').forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(20px)';
+      el.style.transition = 'opacity .5s ease, transform .5s ease';
+      observer.observe(el);
+    });
+  </script>
+</body>
+</html>
