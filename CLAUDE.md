@@ -2869,3 +2869,29 @@ concierge_requests table:
   updated_at
 ```
 
+
+---
+
+## Phase B Pricing Scrapers — Location Data
+
+When building the Phase B pricing scrapers (eBay API, Reverb API, SoundBroker sold prices), capture seller location on every market_prices record.
+
+**Fields to add to market_prices:**
+- `seller_location_city` — text
+- `seller_location_state` — text (2-letter abbreviation)
+- `seller_location_zip` — text where available
+
+**Why this matters:**
+The trading desk use case goes beyond knowing what gear is worth — it becomes knowing where underpriced gear physically is. A Yamaha CL5 listed at $7,500 when the market says $9,400 is interesting. A CL5 listed at $7,500 within driving distance is a same-day pickup opportunity.
+
+**The trading desk query this enables:**
+- Find gear priced 15%+ below market median
+- Within X miles of trading desk location
+- Grade B or better
+- In target categories (LED walls, line arrays, consoles)
+
+This turns the pricing engine into a geographic deal finder, not just a price signal. The data costs almost nothing extra to collect — eBay returns itemLocation on every listing, Reverb returns seller location in the shipping object.
+
+**Implementation note:**
+Add seller_location_state and seller_location_city to market_prices in the Phase B migration. Zip code where available from the source. Do not attempt to geocode — state and city are sufficient for the trading desk proximity filter.
+
