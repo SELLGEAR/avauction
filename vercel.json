@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/close-auctions",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/escrow",
+      "schedule": "*/15 * * * *"
     }
   ]
 }
