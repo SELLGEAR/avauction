@@ -2676,6 +2676,7 @@ Important: robots.txt is a courtesy convention, not enforcement. Determined scra
 
 ### Before Launch Checklist
 
+- [ ] Empirical security audit passes clean: `npx tsx scripts/audit-security.ts` — probes the full grant/policy matrix (moat tables, bids write path, public browse, own-row isolation, escalation attempts) with real anon + authed clients. Rerun after ANY migration touching grants or policies.
 - [ ] RLS enabled and policies written for every table
 - [ ] Service role key confirmed not in any commit
 - [ ] Admin panel behind authentication and on separate subdomain
