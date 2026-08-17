@@ -79,7 +79,7 @@ The goal of phase 1 is not revenue — it is database density and platform credi
 
 - Free buy-it-now marketplace removes all seller friction
 - Seller app makes listing fast enough that rental houses actually do it
-- Master equipment database seeded with 2,000-5,000 products before launch
+- ✅ Master equipment database seeded — 268,048 products, done before launch as planned (original target was 2,000–5,000)
 - Every transaction records clean data — manufacturer, model, condition, price, date
 - Weekly auction generates commission revenue and creates urgency
 - Concierge launches as a premium service
@@ -170,14 +170,16 @@ Clean, structured, authoritative. One record per product. Never duplicated.
 - Year introduced, year discontinued (if EOL)
 - Original MSRP
 
-This database gets seeded before launch with the top 200-300 models that move through AV rental houses regularly. Tom provides the list. Every new product submitted by a seller that gets approved by admin gets added here permanently. Over time this becomes the most comprehensive searchable AV equipment reference database in the industry.
+This database gets seeded before launch with the top 200-300 models that move through AV rental houses regularly. Tom provides the list. ⚠️ **Three different list sizes appear in this document and they are three different lists — do not conflate them: (a) 200–300 models = the curated launch-priority set Tom names; (b) 100–200 models = the initial eBay scrape seed, a subset of (a); (c) ~10,000 models = the full actively-traded scrape target the eBay pass expands to over time.** Every new product submitted by a seller that gets approved by admin gets added here permanently. Over time this becomes the most comprehensive searchable AV equipment reference database in the industry.
+
+⚠️ **KNOWN DATA QUALITY ISSUE — flagged Aug 12, 2026, category field.** Spot-checked while seeding demo auction listings for the browse page: the MA Lighting grandMA3 full-size console — a lighting product — is filed with `category = 'audio'` in the live `master_equipment` table. This is AV-iQ scraped-data noise, not a one-off manual typo, so it's likely not isolated to this single record. **Consequence:** anything that filters or groups by `category` will silently mis-bucket real products until this is audited — the browse page's category filter, and later the pricing gauge's category-based comparables and per-category depreciation curves, since category determines what gear gets compared against what. **Not yet fixed.** Suggested audit approach: derive category primarily from manufacturer (MA Lighting/Martin/Robe/ETC/Avolites → lighting; DiGiCo/Yamaha/Avid/Allen & Heath/Midas/SSL → audio; Barco/Christie/Panasonic/ROE/Brompton/NovaStar → led_video), flag mismatches against the existing `category` value for manual review rather than blind overwrite, and handle staging/rigging manufacturers separately since manufacturer→category isn't 1:1 there. Do this before category filtering or the pricing gauge ship depending on this field being trustworthy.
 
 **2. Seller Inventory Database — gear actually for sale**
 Every record links to a master equipment record. Never stores duplicate product specs — just the seller-specific details.
 - Foreign key to master equipment record
 - Seller ID
 - Quantity
-- Condition grade (A/B/C/D)
+- Condition grade (A/B/C/D = Excellent/Very Good/Good/Fair; plus a separate Poor/For Parts state, off the gauge — see GRADING SYSTEM)
 - QC checklist responses
 - Photos
 - Asking price
@@ -209,14 +211,20 @@ Every record links to a master equipment record. Never stores duplicate product 
 - "Can't find it?" submissions go to admin review before being added to master database
 
 ### Seeding the Master Equipment Database — Before Launch
-Do not wait for sellers to populate the master database. Seed it aggressively before the seller app launches using AI-assisted scraping from existing AV product directories and manufacturer sites.
+✅ **DONE — do not rebuild.** This section is retained as the record of how the catalog was built and why. The seeding job completed in July 2026 at 268,048 unique products. Do not re-run the seeding scrapers as though the database were empty; see Scheduled Scraping for the weekly re-seed cadence that keeps it current.
 
-**Primary sources for seeding:**
-- **AV-iQ** (av-iq.com) — the most comprehensive professional AV product directory in existence. Already has thousands of manufacturers, models, specs, and categories. This proves the concept and is the single best starting point.
-- **AVIXA directories** — industry association product listings
-- **Distributor sites** — Markertek, Full Compass, BH Pro Audio, Sweetwater Pro
-- **Manufacturer websites** — Meyer Sound, d&b audiotechnik, L-Acoustics, ROE Visual, Absen, Brompton Technology, MA Lighting, GrandMA, Disguise, Barco, Christie, Panasonic Pro, etc.
-- **Spec sheet archives** — manufacturer PDF spec sheets contain authoritative specs, dimensions, power requirements, weight
+The original directive was: do not wait for sellers to populate the master database, seed it aggressively before the seller app launches using AI-assisted scraping from existing AV product directories and manufacturer sites. That was executed.
+
+**Sources actually used — ✅ COMPLETE, all 7 scrapers finished their first full pass:**
+1. **AV-iQ** (av-iq.com) — the most comprehensive professional AV product directory in existence. **239,661 records, 99.1% success.** Contributed the overwhelming majority of the catalog.
+2. **GearSource** — `gearsource` scraper
+3. **Gearsupply** — `gearsupply` scraper
+4. **SoundBroker** — `soundbroker` scraper
+5. **UsedAVGear** — `usedavgear` scraper
+6. **Clair Used Gear** — `clair_used_gear` scraper
+7. **AVGear** — `avgear` scraper
+
+⚠️ **CORRECTED JULY 28, 2026.** Earlier drafts listed AVIXA directories, distributor sites (Markertek, Full Compass, BH Pro Audio, Sweetwater Pro), manufacturer websites, and spec-sheet archives as the seeding sources. **None of those were built or used.** The seven above are what actually ran. The unbuilt sources remain available as future catalog-enrichment options — particularly manufacturer spec sheets for filling gaps in specs, dimensions, power, and weight on records AV-iQ covers thinly — but they are enrichment, not seeding, and the seeding job is done.
 
 **What AI scraping collects per product:**
 - Manufacturer name and all known aliases
@@ -229,10 +237,12 @@ Do not wait for sellers to populate the master database. Seed it aggressively be
 - Links to manuals and spec sheets
 - MSRP when publicly available
 
-**Tom's role in seeding:**
-Tom provides strategic input on which manufacturers and categories matter most to the professional AV rental market. AI does the scraping. Admin reviews and approves before anything enters the master database.
+**Tom's role in seeding (historical):**
+Tom provided strategic input on which manufacturers and categories matter most to the professional AV rental market. AI did the scraping. Admin review and approval remains the standing rule for any *new* product entering `master_equipment` from a seller submission — that gate stays on permanently.
 
-**Target before launch:** 2,000-5,000 clean product records covering the top manufacturers in LED video, professional audio, lighting, staging, and rigging. When a seller opens the app on day one and searches for their gear, it should already be there.
+**Target before launch:** ✅ **Exceeded by roughly 50x.** The original target was 2,000–5,000 clean product records. Actual seeded catalog is **268,048 unique products** across 7 sources, with AV-iQ alone contributing 239,661. When a seller opens the app on day one and searches for their gear, it is already there.
+
+This is the moat. It is also the SEO asset — see SEO Structural Advantage.
 
 ---
 
@@ -362,7 +372,9 @@ The platform has multiple revenue streams across sellers, buyers, and concierge 
 - **Free** — weekly auction highlights, basic market intel
 - **Pro subscriber** — deeper editorial commentary, EOL alerts, early access to new listings before public release
 
-Note: Pro newsletter content is editorial — Tom's market observations and directional signals. It does not include raw pricing data, price history, trend lines, or transaction records. Those stay dark.
+Note: Pro newsletter content is editorial — market observations and directional signals. It does not include raw pricing data, price history, trend lines, or transaction records. Those stay dark.
+
+⚠️ **Published as AVauction. No byline, no personal voice, no author attribution anywhere in the email, the archive page, or the metadata.** See the anonymity constraint.
 
 ### Listing Promotions (Phase 2)
 - **Featured listing** — seller pays to place listing at top of auction or in newsletter
@@ -372,13 +384,27 @@ Note: Pro newsletter content is editorial — Tom's market observations and dire
 ---
 
 ## Auction Format
-- **Monday 8am ET:** Drop email sent — lots revealed, browse only, no bidding yet
-- **Friday noon ET:** Bidding opens — auction goes live via Supabase realtime push
-- **Friday ~2pm ET:** Lots close — staggered endings, one lot every 5 minutes
-- **Auto-extend:** Any bid in the last 5 minutes extends the lot by 5 minutes
-- **Weekend:** Winners pay, sellers ship, escrow holds
 
-The weekly cadence is the brand. Monday excitement → Friday urgency → repeat forever.
+⚠️ **TIMING MODEL — REVISED Aug 16, 2026. Final. Supersedes every earlier version, including the old "Friday noon bidding opens" model still described in some downstream sections below (Auction Countdown Timer, Marketplace Banner, Platform Personality) — each of those carries its own revision note.**
+
+- **Monday 12:00pm ET ("high noon"):** The drop. Lots go live, the drop email sends, and bidding opens — all simultaneously, for every lot at once. **There is no pre-bid or browse-only state anymore** — a lot is biddable the instant it's visible.
+- **Monday noon ET → Friday noon ET:** Bidding runs all week. Each lot counts down toward its own staggered close — never a shared close time.
+- **Friday 12:00pm ET ("high noon"):** Staggered closes **begin** — one lot every N minutes (tunable, default 5) in scheduled order. **High noon is when closing STARTS, not a shared end time.** There is still no fixed "auction closes at X" — the auction ends whenever the last lot closes, and auto-extend can push that later still. Each lot counts down to its own close, never a shared one.
+- **Auto-extend:** Any bid in a lot's final N minutes extends *that lot's* close by N minutes (tunable, default **2** — changed from the original 5/5 on Aug 16, 2026).
+- **Weekend:** Winners pay, sellers ship, escrow holds.
+- **All of the above timing values are tunable settings, not hardcoded** — `pricing_engine_settings`: `auction_drop_weekday`, `auction_drop_hour_et`, `auction_close_weekday`, `auction_close_hour_et`, `auction_stagger_minutes`, `auction_auto_extend_minutes` (migration `0030_auction_schedule_settings.sql`). The bidding engine already read `auction_auto_extend_minutes` live before this revision (see `0015_bidding_engine.sql`) — only the stored value changed, not the engine. `lib/time/auctionSchedule.ts` mirrors these constants client-side for the between-auctions countdown; the database is authoritative.
+- **Planned, not built:** whale early-access preview bidding the week before the public drop; a max-extensions ceiling per lot; a tighter stagger interval for high-lot-count auctions. Noted here as future scope only — do not build any of these now.
+
+The weekly cadence is the brand. Monday drop → Friday high-noon showdown → repeat forever.
+
+**Tagline (decided Aug 11, 2026): "New drops every Monday · Auctions on Friday."** Use as the identity line on the main auction page header. "Drops" is deliberate — sneaker-drop cadence energy, and it teaches the whole model in five words.
+
+**Main auction (browse/grid) page — REVISED Aug 16, 2026 (supersedes the Aug 11, 2026 pre-bid-week reference mock, `design/auction-browse.html`, which needs a redraw before anyone builds off it):**
+- Header: the tagline as the eyebrow, "This week · N lots" as the headline. **No shared countdown while lots are live** — bidding opened the instant the lots dropped, so there's nothing to count down to. The three-cell countdown (`CountdownCells`) appears here only during the gap between auctions (see below), retargeted to the next Monday-noon drop instant.
+- Grid of lot cards. Each card: photo, grade badge (single letter + color: A green / B green / C amber / D red), manufacturer + lot #, title, current bid (or "No bids yet"), a compact live countdown to that lot's own close (`LotCloseCountdown`, compact size), and watcher count. Every card is in this live state from the moment it drops, all week — there is no separate pre-bid card variant anymore.
+- Sort options: ending soonest, most watched, closest to me (proximity matters for heavy gear pickup), price.
+- Buy-it-now does NOT appear on this page — it's a separate section with its own accent color.
+- **Between-auctions state** (after the last Friday lot closes, until the next Monday-noon drop): grid is empty, copy reads "No lots match this week — check back Monday for the next drop," and the header shows `CountdownCells` retargeted to the next Monday-noon-ET drop instant, captioned "Next drop in."
 
 ---
 
@@ -387,6 +413,15 @@ The weekly cadence is the brand. Monday excitement → Friday urgency → repeat
 2. **Buy-it-Now** — fixed price, permanent section, always available
 
 These two sections have **different accent colors** — auction gets one, buy-it-now gets another. Both sit within the same dark premium design language.
+
+⚠️ **A listing is ONE type — auction OR buy-it-now, never both on the same item.** The seller picks at listing time (see Seller Listing Lifecycle). Do not render a buy-it-now block on an auction listing or vice versa. (Confirmed Aug 11, 2026 — an early mock wrongly showed both on one listing.)
+
+⚠️ **The auction listing page is STATUS-DRIVEN — one component, multiple states, not a static page.** REVISED Aug 16, 2026 — the pre-bid state is gone; bidding is live the instant a lot drops. `design/auction-detail.html` (reference mock, Aug 11, 2026) still shows the old two-state Pre-bid/Live split and needs a redraw before anyone builds off it. Current states:
+- **Live (Monday-noon drop → that lot's staggered close):** bidding open from the moment the lot is visible. Panel shows current bid, the proxy max-bid field ("your max bid — we bid up to this for you"), and the countdown to *this lot's* close (tightening to red minutes/seconds in the final N minutes — tunable, default 2 — with the auto-extend notice). Status badge: Live auction → Closing soon → Auction closed. There is no more "Upcoming" badge.
+- **Closed:** lot has closed; shows final price and outcome.
+- **Future element (do NOT build at launch — pricing engine/`market_prices` is empty):** an estimated price range ("based on recent sales") on the listing page. Documented placeholder only; wire it once pricing data flows.
+- **Future element (design later with Tom):** the "WE'LL DO IT LIVE" moment — now tied to Friday high noon, when staggered closes begin, not the Monday drop. See Platform Personality.
+- **Future feature, not built:** whale early-access preview bidding the week before the public drop.
 
 ---
 
@@ -456,7 +491,7 @@ Every completed transaction must record: manufacturer, model, condition_grade, f
 When a seller enters a manufacturer and model during listing creation, suggest a price range based on:
 - Comparable listings currently active on AVauction.com
 - Recent sold prices from AVauction.com transaction history
-- Asking prices scraped from GearSource, Gearsupply, SoundBroker, and eBay completed listings (background service)
+- Asking prices scraped from GearSource, Gearsupply, SoundBroker, and eBay active listings via Browse API (background service). ⚠️ NOT eBay completed listings — those are not accessible.
 - Condition grade applied to depreciation curve for that gear category
 
 Example output: "Based on current market data, a Grade B [Manufacturer Model] typically sells between $8,500 and $11,000. Recent comparable sales on AVauction.com averaged $9,200."
@@ -478,24 +513,49 @@ What stays dark — internal use only, never published:
 
 The moat is the data staying dark. Publishing it destroys the information asymmetry that makes the trading desk profitable. No competitor has the pricing intelligence AVauction.com is building. GearSource has been around 22 years and never built it. Do not give it away.
 
-### Market Data Scraping Service (Build First — Week 1)
-Start the scraper before anything else is built. Every week it runs adds to the dataset. By the time the seller app launches the pricing engine already has months of real market data behind it instead of starting from zero.
+### Market Data Scraping Service (Phase B — pricing scrapers)
+
+⚠️ **STATUS UPDATE JULY 28, 2026.** This section was originally headed "Build First — Week 1" and opened with "start the scraper before anything else is built." **That sequencing is complete and no longer applies.** The backend core is built (13 commits, migrations 0001–0028, 280+ verification checks) and the 7 seeding scrapers have finished. This is now **Phase B**, and it runs alongside frontend work rather than ahead of it. Do not reorder a build session around the old directive.
+
+The original rationale still holds and is why Phase B should not slip: every week the scrapers run adds to the dataset, so by launch the pricing engine has real market data behind it instead of starting from zero. **Phase B writes to `market_prices_staging` with manual promotion — never directly to `market_prices`.** See the Staging-and-Review Workflow.
 
 **Run on Vercel cron jobs — costs pennies per month.**
 
-**eBay API (highest priority — real sold prices)**
-- Use the eBay Finding API or Browse API to pull completed and sold listings
-- Standard API access goes back 90 days of completed listings
-- Run the scraper weekly — each run adds another week to your internal historical dataset
-- After 12 months of running you have 12 months of eBay data stored internally even though the API only goes back 90 days at a time
-- Filter by your master equipment database models only — do not do broad category pulls or you'll get consumer gear mixed in
-- Tom identifies the priority model list — top 100-200 models most commonly traded in professional AV rental houses
+**eBay API — ⚠️ REVISED JULY 2026. ASKING PRICES ONLY. READ THIS BEFORE BUILDING THE SCRAPER.**
+
+Earlier versions of this document said the Finding API or Browse API would provide completed and sold listings. **That is no longer true and any plan built on it will fail.**
+
+Current reality:
+- **Finding API (`findCompletedItems`) is deprecated.** It returns rate-limit errors in Production even on a first call. Do not build against it.
+- **Sold price data now sits behind the Marketplace Insights API**, which is a Limited Release product requiring eBay business-level approval. Independent and small-business developers are routinely denied. We have applied / should apply, but must not assume access.
+- **Browse API returns ACTIVE listings only** — asking prices, not sold prices. Result sets cap at 10,000 items.
+
+**What we build now:** a Browse API scraper capturing **asking prices**, written to `asking_price` on the staging record with `sold_price` NULL. This is legitimate, supported, and works with the production keyset. It is a lower-weight input to the pricing engine, not a sold-price source. Do not label eBay records as `sold_verified` unless and until Marketplace Insights access is granted.
+
+**⚠️ PREREQUISITE — keyset is disabled until this is done.**
+Every eBay production keyset is disabled until the app either subscribes to **Marketplace Account Deletion notifications** or is granted an exemption. **We subscribe — we do not opt out.** The Phase B spec captures `seller_location_city`, `seller_location_state`, and `seller_location_zip` on every price record, which is data tied to identifiable eBay sellers; an exemption claims we hold no such data and would not be accurate.
+
+Build: an HTTPS endpoint on the Vercel deployment that (a) answers eBay's verification challenge with the required hash and (b) returns 200 on incoming deletion notifications and purges the matching seller location fields. Roughly 30 minutes of work. Nothing else eBay-related functions until it exists.
+
+**⚠️ RATE LIMIT — 5,000 calls per day.** This dictates the scraper's architecture:
+- **Query by model search, not by catalog iteration.** One search call returns up to 200 matching listings. Iterating all 268,048 master_equipment products at 5,000 calls/day would take 54 days for a single pass — unusable.
+- Maintain a prioritized model list. ~10,000 actively-traded models = a full pass in two days, comfortably supporting a weekly refresh.
+- Tom identifies the priority tier — the top 100–200 models most commonly traded in professional AV rental houses seed the list; expand from transaction data over time.
+- Apply for an **Application Growth Check** to raise the daily limit once there's real usage to point at.
+- Filter to master_equipment models only — never broad category pulls, or the data fills with consumer gear.
+
+**Category context.** The catalog is line arrays, LED walls, lighting consoles, video processors. A $200K LED wall does not trade on eBay. eBay was always the long tail — DIs, wireless packs, small-format mixers. Weight it accordingly and do not let it block the session.
+
+⚠️ **CORRECTED JULY 28, 2026.** This paragraph previously named the SoundBroker sold archive ("back to 1997"), Reverb sold data via their API, and auction results as "the sold-price sources that matter" — stated as settled fact. **None of the three is verified.** SoundBroker's archive is behind a $100/yr membership and its contents and depth are entirely unknown; the 1997 figure had no verification behind it and has been removed. Reverb sold access depends on an untested endpoint. Auction results are login-gated at SoldTiger and unconfirmed at josephfinn.com. **There are zero verified sold-price sources today.** See the Data Source Status Table. This is the same failure mode as the original eBay claim — do not restate an unchecked source as an available one.
 
 **Competitor asking prices (nightly)**
+- **AVGear — ✅ use `avgear.com/products.json`. Wire this FIRST.** Public Shopify endpoint, no key, no auth, no HTML scraping, whole active store in a few calls at `?limit=250&page=N`. Highest-quality asking source available. See AVGear Data Acquisition — Four Quadrants.
 - GearSource listings — manufacturer, model, condition, asking price, date
 - Gearsupply listings — same fields
-- SoundBroker listings — same fields
-- AVGear — check if auction results are published post-event
+- SoundBroker listings — same fields. ⚠️ Apply the 10–15% broker markup correction; D2B listings exempt.
+- UsedAVGear, Clair Used Gear — same fields, scrapers already built
+
+⚠️ The line that previously sat here — "AVGear — check if auction results are published post-event" — conflated two different things. AVGear's *asking* prices come from the Shopify JSON endpoint above. AVGear's *auction* results are a separate question on a separate platform (josephfinn.com) and are tracked in the Data Source Status Table, not here.
 
 **Priority model list for scraping — Tom to finalize**
 Start scraping these categories immediately, prioritizing models commonly traded in professional AV rental houses:
@@ -517,24 +577,42 @@ Start scraping these categories immediately, prioritizing models commonly traded
 **Storage**
 `market_prices` table — full field list:
 - `source` — platform name (eBay, Reverb, GearSource, SoldTiger, AVGear, AVLAuction, etc.)
-- `source_category` — data quality tier, one of three values:
-  - `sold_verified` — real transaction prices from completed sales (eBay completed listings, Reverb sold, AVGear auction results, SoldTiger results, AVLAuction results, LiveAuctioneers results, West Auctions results)
-  - `asking_dealer` — asking prices from professional AV dealers who inspect and grade gear (GearSource, Gearsupply, SoundBroker, UsedAVGear, Clair Used Gear, Solaris Network, CUE Sale, ChurchGear)
-  - `asking_marketplace` — asking prices from general marketplaces where individual sellers price their own gear (Sweetwater Gear Exchange, Guitar Center Used, B&H Photo Used, Audiogon, HifiShark, USAudioMart)
+⚠️⚠️ **SCHEMA GROUND TRUTH — VERIFIED AGAINST THE LIVE DATABASE JULY 28, 2026.** The columns that ACTUALLY EXIST on `market_prices` are:
+
+`id` (uuid), `source` (text), **`source_category`** (text), `manufacturer` (text), `model` (text), `master_equipment_id` (uuid), `ebay_condition_label` (text), `inferred_grade` (text), `grade_confidence` (text), `grade_source` (text), `description_raw` (text), `asking_price` (numeric), `sold_price` (numeric), `listing_url` (text), `weight` (numeric), `scraped_at` (timestamptz), `created_at` (timestamptz).
+
+**`source_class` DOES NOT EXIST AS A COLUMN.** It is a specification in the confidence weighting model that was never migrated into the table. `source_category` is what got built.
+
+**Resolution — do this, do not improvise:** add `source_class` in a new migration and keep both. `source_category` stays as the coarse three-value quality tier; `source_class` becomes the six-value column the weight formula keys off. They are not competing taxonomies once both exist — one is grain, the other is granularity. **The table is EMPTY (0 rows, verified), so this migration is free — no backfill, no data risk. Do it before Phase B writes the first row, because doing it after means reprocessing everything.**
+
+⚠️ An earlier July 28 edit to this document declared `source_category` deprecated and told Claude Code not to implement it. **That was wrong and has been reversed.** It was written by reconciling two sections of this document against each other without checking the database. Do not repeat that method — when this document and the schema disagree, the schema wins, and the way to find out is to query it.
+
+- `source_category` — coarse quality tier, three values:
+  - `sold_verified` — retained as a *definition*, not a column value. ⚠️ **REVISED JULY 2026. Do not use the old definition.** A record qualifies as sold_verified ONLY if a real transaction price was confirmed. Current status of each candidate source:
+  - AVauction own transactions — ✅ verified, the only fully reliable source
+  - Reverb sold — ✅✅ **VERIFIED & PULLED July 28, 2026. THE sold-price breakthrough.** Not `/api/price_guides` (that endpoint 403s without elevated approval — don't need it). The working endpoint is **`/api/listings/all?query=MODEL&state=sold`** — returns REAL completed-sale prices WITH a Reverb condition grade per listing. Coverage test: 21/24 priority models, then a 60-model pull returned **658 graded sold rows, 53/60 models**. Heavy iron included: DiGiCo SD12 $49,325 (B), SD12 pair $60,000 (A), grandMA3, Yamaha CL5 (25 sales), Martin Viper, Meyer MICA. Public API + personal token (`public` scope) — NO robots.txt or commercial-reuse wall (unlike the auction sources). `source_class = marketplace_sold`, weight 0.60. Staged to `reverb-sold.json`, NOT yet imported. Reverb condition → our grade: Brand New/Mint/Excellent→A, Very Good/B-Stock→B, Good→C, Fair→D, Poor→Poor(unpriced). ⚠️ Calibration note: A-grade is over-represented (384/658) because Brand New maps to A — consider a separate `is_new_in_box` flag so new dealer stock isn't mistaken for a used-Excellent comp. Misses (d&b V8, L-Acoustics K2, Disguise, Robe Pointe) are genuinely rare gear even a big marketplace rarely moves.
+  - SoldTiger auction results — 🔶 LOGIN PENDING for catalog, ❌ BLOCKED for price reuse. Closed catalogs are PUBLIC (lot names, quantities, sold/unsold status) — sell-through and supply signals usable with no account. BUT Tiger monetizes its own results data and, like Finn, this falls under attorney Q#10: viewing prices ≠ license to ingest them into our product. Treat the realized-price side as blocked pending legal review, same as Finn. Signup form broken (eWAY `eCrypt`) — phone (805) 497-4999 if catalog access is wanted.
+  - AVGear auction results — ❌ **LEGALLY BLOCKED pending attorney Q#10.** Runs on Joseph Finn Co. Two surfaces: `josephfinn.com` (catalog, readable) and `auctions.josephfinn.com` (bidding/prices). The bidding platform blocks scraping via robots.txt AND its terms forbid commercial reuse of site data (Website Usage §d.iv). Hammer prices are viewable to a registered bidder but NOT ingestible into our product until the attorney rules. Catalog/supply data on the WordPress side is fine to read. 18% buyer's premium confirmed. Aug 13 open, Day 1 closes Aug 19 / Day 2 Aug 20.
+  - AVLAuction, West Auctions — ⚠️ LIQUIDATION FORMAT. These are sold prices but not comps. Classified `auction_sold_liquidation`, excluded from the median. See the confidence weighting model.
+  - LiveAuctioneers — ⚠️ UNVERIFIED, kept in. Free 29M-record database confirmed, keyword-searchable, no paywall. A Google search naming CL5/d&b/grandMA surfaced no LiveAuctioneers pages, but that's Google ranking, not their internal index — they may carry speakers, mixers, and mics from estate/general-audio sales. Caveat: general consumer-audio comps are NOT pro-touring comps and would skew the gauge if mixed in. Verify inside their own results database before building; if kept, tag records so pro vs consumer audio can be separated.
+  - eBay completed listings — ❌ NOT AVAILABLE. Finding API deprecated, Marketplace Insights gated.
+  - `asking_dealer` — asking prices from professional AV dealers who inspect and grade gear (GearSource, Gearsupply, SoundBroker, UsedAVGear, Clair Used Gear, AVGear, Solaris Network, CUE Sale, ChurchGear)
+  - `asking_marketplace` — asking prices from general marketplaces where individual sellers price their own gear (eBay Browse, Sweetwater Gear Exchange, Guitar Center Used, B&H Photo Used, Audiogon, HifiShark, USAudioMart)
+- `source_class` — ⚠️ **SPEC'D BUT NOT YET MIGRATED.** Six-value enum that the weight formula keys off. See the confidence weighting model for values and the authoritative source-to-class mapping. Add via migration before Phase B writes any rows.
 - `manufacturer` — matched to master_equipment table
 - `model` — matched to master_equipment table
 - `master_equipment_id` — foreign key to master_equipment record
 - `ebay_condition_label` — raw eBay condition string if source is eBay
-- `inferred_grade` — A/B/C/D inferred from condition description
+- `inferred_grade` — A/B/C/D (Excellent/Very Good/Good/Fair) inferred from condition description; Poor/For Parts stored as a distinct unpriced value, never a letter
 - `grade_confidence` — high/medium/low
 - `grade_source` — ebay_label/description_parse/photo_analysis
 - `asking_price` — listed asking price in USD
 - `sold_price` — confirmed transaction price in USD (null for asking_price sources)
 - `listing_url` — exact page scraped, for validation and audit trail
 - `scraped_at` — timestamp of when this record was pulled
-- `weight` — confidence weight used by pricing engine (1.0 for own transactions, 0.7 for sold_verified, 0.5 for asking_dealer, 0.2 for asking_marketplace)
+- `weight` — calculated confidence weight. ⚠️ Computed as `base_weight(source_class) × confidence_multiplier(grade_confidence)`. See the revised confidence weighting model — do not use flat per-source weights.
 
-The `source_category` and `weight` fields mean the pricing engine never needs to look up the source name to know how much to trust a data point. Every record carries its own quality signal.
+The `source_category`, `source_class`, and `weight` fields mean the pricing engine never needs to look up the source name to know how much to trust a data point. Every record carries its own quality signal. (`weight` already exists as a numeric column; it is unpopulated because the table is empty.)
 
 This feeds the pricing suggestion engine from day one and eventually becomes the market index product in phase 3.
 
@@ -572,25 +650,25 @@ The data stays dark. No public subscription product is ever built. The full tran
 
 
 ### Grade Inference for Scraped Data
-Scraped listings from eBay and competitors don't use your A-D grading system. The scraper infers grades from available signals and stores them with a confidence rating. Your own platform's transaction data — graded via the QC checklist — is the gold standard and gets weighted more heavily as it grows.
+Scraped listings from eBay and competitors don't use your A–D grading system (A/B/C/D = Excellent/Very Good/Good/Fair; see GRADING SYSTEM for the full five-tier scale including the unpriced Poor tier). The scraper infers grades from available signals and stores them with a confidence rating. Your own platform's transaction data — graded via the QC checklist — is the gold standard and gets weighted more heavily as it grows.
 
-**eBay condition mapping**
-eBay's standardized condition labels map to AVauction grades as follows:
-- New / Open Box → Grade A (high confidence)
-- Excellent → Grade A or B (medium confidence — parse description to distinguish)
-- Very Good → Grade B (medium confidence)
-- Good → Grade B or C (low confidence — parse description)
-- Acceptable → Grade C (medium confidence)
-- For Parts or Not Working → Grade D (high confidence)
+**eBay condition mapping** — ⚠️ aligned to the five-tier scale (see GRADING SYSTEM). Grade names map 1:1 to eBay's own labels, which is convenient because eBay uses the same vocabulary:
+- New / Open Box → Grade A / Excellent (high confidence)
+- Excellent → Grade A / Excellent (medium — parse description to confirm)
+- Very Good → Grade B / Very Good (medium)
+- Good → Grade C / Good (medium)
+- Acceptable → Grade D / Fair (medium)
+- For Parts or Not Working → **Poor / For Parts** (high confidence) — ⚠️ NOT a lettered grade; this is the unpriced tier, excluded from the gauge and the median.
 
 **Description parsing via Claude API**
 Run every scraped listing description through Claude to extract condition signals:
-- "powers on and functions perfectly" → Grade A/B signal
-- "minor cosmetic wear" → Grade B signal
-- "flight cases included" → Grade A signal
-- "known issues" or "needs repair" → Grade C/D signal
-- "for parts" or "not working" → Grade D signal
-- "tested and working" → Grade B signal
+- "powers on and functions perfectly" → A / Excellent signal
+- "minor cosmetic wear" → B / Very Good signal
+- "flight cases included" → A / Excellent signal
+- "visible wear but works" → C / Good signal
+- "known issues" or "needs repair" → D / Fair signal (disclose the issue)
+- "for parts" or "not working" → **Poor / For Parts** — unpriced, off the gauge
+- "tested and working" → B / Very Good signal
 
 Claude returns a suggested grade and a confidence score (high/medium/low) based on how clearly the description maps to a grade.
 
@@ -603,19 +681,88 @@ For high-value listings above a threshold price, run listing photos through Clau
 
 Store photo analysis results separately — do not override description-based grade, add as additional signal.
 
-**Confidence weighting in the pricing engine**
-The pricing engine weights data points by source and confidence:
-1. AVauction.com own transactions + QC checklist grade → weight 1.0 (gold standard)
-2. eBay sold price + eBay Excellent/For Parts condition (high confidence mapping) → weight 0.7
-3. eBay sold price + description-parsed grade (medium confidence) → weight 0.5
-4. eBay sold price + description-parsed grade (low confidence) → weight 0.3
-5. Competitor asking price (not sold) → weight 0.2
+**Confidence weighting in the pricing engine — REVISED JULY 2026**
 
-As AVauction.com transaction volume grows, the weighting naturally shifts toward own data. Scraped data fills the gap early and becomes a secondary signal over time.
+The previous version of this model was built around eBay sold prices, which occupied three of its five tiers. eBay sold data is not accessible (see the eBay API section), so that model is void. It also treated every sold price as equivalent, which is wrong for a second and independent reason — see sale context below.
+
+Weight is now the product of two independent dimensions:
+
+**`weight = base_weight(source_class) × confidence_multiplier(grade_confidence)`**
+
+⚠️ **`source_class` is not yet a column on `market_prices` — see the schema ground truth note in the market_prices field list. Migrate it before Phase B runs, or this formula has nothing to read.**
+
+**Dimension 1 — source_class (base weight)**
+
+| source_class | Examples | Base weight |
+|---|---|---|
+| `own_transaction` | AVauction closed auction or buy-it-now, QC checklist graded | **1.00** |
+| `marketplace_sold` | Reverb sold (if API access confirmed), any verified sale in a retail/marketplace context | **0.60** |
+| `auction_sold_retail` | Curated auctions where lots are inspected, graded, and marketed — AVGear, SoldTiger | **0.50** |
+| `auction_sold_liquidation` | Distressed/liquidation formats — AVLAuction (€10 opens), West Auctions (as-is, untested, local pickup only) | **0.25** |
+| `dealer_asking` | GearSource, Gearsupply, SoundBroker, UsedAVGear, Clair, **AVGear (`products.json`)**, Solaris, CUE Sale, ChurchGear | **0.15** |
+| `private_asking` | eBay Browse, HifiShark, USAudioMart, Audiogon, Sweetwater, Guitar Center, B&H | **0.10** |
+
+**Dimension 2 — confidence_multiplier**
+- high → 1.0
+- medium → 0.7
+- low → 0.4
+
+**⚠️ Why liquidation auctions are separated out — do not merge these back together.**
+
+An earlier version of this document claimed auction sold results are "nearly as strong as our own data." That is wrong. A €10-opening-bid auction, or an as-is untested lot requiring local pickup, produces a *distressed* price. It is a real transaction, but it measures the floor of the market, not its value.
+
+Merging those into a weighted median alongside inspected, graded, escrowed AVauction transactions drags the gauge down, and because both would carry a "sold" label the distortion would be invisible. Liquidation results are a **floor indicator**, not a comp.
+
+**Until own-transaction volume exists to calibrate against, `auction_sold_liquidation` records are stored but EXCLUDED from the median calculation.** They may be surfaced separately as a floor reference. Once there are enough matched pairs to measure the liquidation discount empirically by category, they can be folded in with that discount applied. Do not guess the discount factor — measure it.
+
+**⚠️ SOURCE MARKUP BIAS — a displayed price is not always the seller's price.**
+
+Some sources display a price that already includes their own margin. Scraping the displayed number and treating it as an asking price silently inflates the median.
+
+**SoundBroker — CONFIRMED, from their published Seller's Agreement:**
+- They add a margin of **10%–15% on top of the seller's asking price** on all items
+- On items **under $1,000** they add a **flat $150–$200** instead of a percentage — proportionally far worse (a $600 item can carry a 25–33% markup)
+- The seller states what they want; SoundBroker adds their fee on top and displays the combined figure
+- **Exception:** Direct-to-Buyer / Direct Club listings (highlighted yellow on their site) bypass the SoundBroker fee entirely. Those are true seller prices. **Detect and flag D2B listings separately — do not apply the markup correction to them.**
+
+**Correction to apply to SoundBroker non-D2B records:**
+- Item ≥ $1,000: `adjusted_price = raw_price / 1.125` (midpoint of the 10–15% range)
+- Item < $1,000: `adjusted_price = raw_price - 175` (midpoint of the $150–200 range)
+- Set `markup_correction_applied` to describe which rule fired
+- Floor the result at a sane minimum; never allow a negative or absurd adjusted price
+
+**This is an estimate, not a measurement.** The exact margin varies by deal and is negotiable on offers. Revisit once there are matched pairs — the same model listed on both SoundBroker and a non-marked-up source — and measure the real spread rather than trusting the midpoint.
+
+**Check every other source for the same pattern before building its scraper.** The question to answer for each: *is the displayed number what the seller wants, or what the seller wants plus the platform's cut?* Broker and consignment models mark up. Classified and listing-fee models generally do not. Do not assume — find the fee structure in their seller terms, the way this one was found.
+
+Sources still unchecked for markup bias: GearSource, Gearsupply, UsedAVGear, Clair Used Gear, Solaris, CUE Sale, 10K Used.
+
+**⚠️ Display governance — the gauge must not project confidence it does not have.**
+
+The engine will happily return a weighted median, an IQR, and a needle position from nothing but asking prices. That output looks identical to a real market value and is actually a median of what sellers hope to get — which in this industry skews high and stale, since gear sits listed for months at aspirational numbers.
+
+Store these in `pricing_engine_settings`:
+- `gauge_min_sold_count` — minimum count of records with source_class `own_transaction`, `marketplace_sold`, or `auction_sold_retail` required before the gauge displays a needle at all. Below this, show a range with no needle.
+- `gauge_min_source_diversity` — minimum number of distinct sources required before displaying a needle.
+- `gauge_grade_floor` — minimum condition grade allowed into the median that positions the needle. **Set to `good` (i.e. grade C).** Only A/B/C (Excellent/Very Good/Good) feed the median; grade D (Fair) is stored and displayed but weighted low and kept out of the needle calculation; Poor/For Parts never enters. Mirrors Reverb's Price Guide (averages good-or-better, excludes fair/poor/non-functioning). See GRADING SYSTEM for the full scale. ⚠️ This raises the data bar for the gauge to display — with zero verified sold data today, expect the no-needle state at launch.
+
+Label the gauge honestly with what it is built from. "Based on 12 verified sales" and "based on 47 current asking prices" are different claims and must read differently to the user. Sellers will trust a wide honest range and forgive it. They will not forgive a confident wrong number — and the entire differentiator against SoundBroker is that they refuse to guide pricing and we do.
+
+**As own-transaction volume grows the model self-corrects** — weight 1.00 records accumulate and progressively dominate the scraped inputs. This is the intended trajectory. The 0% buy-it-now commission is not only a founding-seller benefit; it is how the platform acquires verified sold data that no scraper can supply.
+
+**Additional columns required on `market_prices` and `market_prices_staging`:**
+- `source_class` — enum matching the table above
+- `sale_context` — `retail` | `liquidation` | `asking`
+- `excluded_from_median` — boolean, default false; true for liquidation records pending calibration
+- `raw_price` — the price exactly as displayed on the source, before any correction
+- `adjusted_price` — `raw_price` after the source markup correction below; this is what the pricing engine reads
+- `markup_correction_applied` — text describing what was subtracted, or NULL if none
+
+**Never overwrite `raw_price`.** Store both. If a markup assumption turns out wrong, the correction can be recomputed without re-scraping.
 
 **Storage fields added to market_prices table**
 - ebay_condition_label (raw eBay condition string)
-- inferred_grade (A/B/C/D)
+- inferred_grade (A/B/C/D = Excellent/Very Good/Good/Fair; Poor/For Parts is a separate unpriced state)
 - grade_confidence (high/medium/low)
 - grade_source (ebay_label/description_parse/photo_analysis)
 - description_raw (full listing description for re-parsing if needed)
@@ -630,6 +777,200 @@ As AVauction.com transaction volume grows, the weighting naturally shifts toward
 
 These gaps are why AVauction.com's own QC checklist data is so valuable — it captures what scraped data cannot. Over time this makes the platform's own transaction dataset more accurate and more authoritative than any scraped source.
 
+
+---
+
+---
+
+---
+
+## AVGear Data Acquisition — Four Quadrants (Shopify JSON confirmed live July 2026)
+
+AVGear runs both transaction formats — fixed-price Shopify store + bimonthly auctions on josephfinn.com. Their categories are our exact catalog (first product returned by their API was a Meyer Sound ULTRA-X40). Four data quadrants, four different mechanisms:
+
+### Quadrant 1 — Buy-it-now ACTIVE ✅ SOLVED AND EMPIRICALLY PULLED (July 28, 2026)
+
+**FULL PULL COMPLETED. 23,052 products retrieved across 93 pages. These are measured facts, not estimates.**
+
+`https://www.avgear.com/products.json` is PUBLIC and returns clean structured JSON — no key, no auth.
+- Paginate with `?limit=250&page=N` (250 is the Shopify max). Ends naturally on a short page — page 93 returned 52.
+- Each record: `id`, `title`, `handle`, `vendor`, `product_type`, `tags`, `variants[]` (price, sku, available), `images[]`.
+
+**⚠️ THE FEED IS A POOR PROXY FOR THE SITE. Field-by-field reality:**
+
+| Field | Expectation | Actual |
+|---|---|---|
+| `vendor` | manufacturer | ❌ **USELESS** — 23,051 of 23,052 read "AVGear.com". Extract brand from title instead, matched against a known-manufacturer list; tags are a weak fallback (~67% title-match rate achieved). |
+| `product_type` | category | ❌ **USELESS** — 3% populated, and the values are model numbers, not categories. |
+| `tags` | includes F/C grading | ❌ **FALSE — grading is NOT in the feed.** Corrected July 28. Earlier draft claimed F/C grades appear in tags/product_type. They do not. Zero hits on "Condition:", "Grade:", or any F/C value across all 5,504 used items. |
+| `body_html` | condition notes | ❌ Manufacturer brochure copy only. Median 401 chars. Same marketing paragraph on a mint unit and a broken one. |
+| `variants[].price` | asking price | ✅ 81.6% populated. Unpriced = "call for price". |
+| `tags` (`category-*`) | — | ✅ **UNEXPECTED WIN — 291 distinct category tags.** This is AVGear's full product taxonomy. See parent/child below. |
+
+**⚠️ THE PARENT/CHILD SPLIT — the single most important structural finding. Four of four predictions held.**
+
+Every product carries either a `parent` tag or a `child` tag. Exactly ONE of 23,052 has both. They are two different datasets fused into one feed:
+
+| | PARENT (10,828) | CHILD (12,054) |
+|---|---|---|
+| What it is | Catalog entry — the product concept | Physical unit in stock |
+| Condition tag | 94.2% have none | 90% have one |
+| `category-*` taxonomy | **99.0%** | 0.3% |
+| Unpriced | 38.5% | 0.3% |
+| Destination | → `master_equipment` | → `market_prices` |
+
+**Do not import parents as prices. Do not import children as catalog.** Parent price is AVGear's own new/dropship price, NOT MSRP — proven by a Meyer Sound ULTRA-X40 pair where the parent listed $4,699.99 and the used child listed **$6,799.95**. A used unit above the catalog price is a scarcity signal, not a data error. Never label parent price as MSRP.
+
+**Yield after splitting, deduplicating, and quarantining (measured):**
+- **10,827** catalog records → `master_equipment`, carrying 291 categories
+- **2,029** deduplicated used asking prices across 365 manufacturers → `market_prices`
+- **5,194** deduplicated new-price anchors (depreciation denominators)
+- **1,205** quarantined (630 no brand identified, 361 condition unknown, 171 neither tag, 40 no price, 2 price sentinels, 1 both tags)
+
+**⚠️ DEDUPLICATION IS MANDATORY — raw 5,201 used rows collapse to 2,029 (61% redundant).** 720 duplicate groups. Worst: 62 identical DeckLink Minis at $39.99, 58 Panasonic ET-DLE060 at $895, 43 ET-D3QW200 at $6,200, 38 HOLOPLOT MD96 at $12,499. Store as one observation with `unit_count`, never as N observations.
+
+**⚠️ CONSIGNMENT LOT NUMBERS — the duplicates are one seller, not market depth.** SKUs and handle suffixes carry a lot code: Behringer `C1978-8`, the Panasonic PT-RQ50Ks all `c2132-507 / -512 / -529`, the Disguise VX4s all `c2132-*`. **`C####` = a single consignment lot.** Seven identical VX4s are ONE supply event from ONE seller, not seven independent market observations. Extract the lot code from the handle and treat same-lot items as correlated, not independent, when computing the median.
+
+**⚠️ PRICE SENTINEL — $100,000 is a placeholder meaning "call us."** 34 items, all large lots: `(347) Gloshine LED Package`, `(12) Panasonic lenses`, `(4) Shure transmitters`. Filter it. Note the $229,000 Angenieux Optimo Prime 12-lens set is a REAL price — do not filter by magnitude, filter the exact sentinel value.
+
+**Price distribution (measured):** used median $199, new median $494. Used ≥$1,000: 18.1%. Used ≥$5,000: 149 items. Top used manufacturers: panasonic (223), barco (125), christie (96), shure (80), crestron (68), aja (63), sanyo (55), lectrosonics (54). **This is real pro AV, not accessories** — grandMA3 Full Size $78,000, grandMA3 Light $66,000, DiGiCo SD5 $44,995, SD12 $41,900, Disguise VX4 media servers, Panasonic PT-RQ50K projectors.
+
+**Their SKUs are clean product keys — use for fuzzy match.**
+- `source_class = dealer_asking`, `sale_context = asking`. These are AVGear's own asking prices (dealer inventory, not marked-up consignment like SoundBroker) — no markup correction needed, but verify.
+- **Rate-limit politely.** Public and unauthenticated, but hammering still reads as scraping. With `limit=250` the whole catalog is a few calls anyway — no reason to go fast.
+- ⚠️ Shopify stores CAN disable this endpoint; AVGear currently has it ON. If it 404s in future, fall back to HTML collection pages.
+
+### Quadrant 2 — Buy-it-now SOLD 🔶 inferred by disappearance polling
+
+Shopify does not expose other merchants' orders. No direct sold data. Inference:
+- Poll `/products.json` on a schedule (daily). Diff against last snapshot.
+- A product that was `available: true` and is now gone = left the market (sold, or pulled).
+- You already captured its asking price on the prior poll → record "item X, last ask $Y, delisted date Z."
+- This is a sold-SIGNAL, not a sold-PRICE. `source_class = private_asking`-tier confidence at best, flag `inferred_delisting = true`. Do NOT treat as verified sold. Useful for velocity / sell-through, not for the median.
+
+### Quadrant 3 — Auction ACTIVE ⚠️ TWO SURFACES, verified July 28, 2026
+
+AVGear auctions run through Joseph Finn Co. across two surfaces:
+- **`josephfinn.com`** (WordPress catalog) — `index,follow`, public, scrapable. Auction *catalogs* live here: lot names, manufacturers, models, quantities, open/close dates. Archive by industry at `/category/audio-video/` runs 24+ pages deep, bimonthly AVGear auctions plus WNET, cable stations, Broadcast Video Auctions, etc. This is genuine **supply/catalog intelligence** and it is fair to read.
+- **`auctions.josephfinn.com`** (the bidding platform, upgraded Jan 2024) — where bids and prices live. During a live sale the lot list shows `Current High Bidder $X`, `Bids: N`, `Watching: N` per lot. **616 lots on the Aug Day 1 sale alone.** One-time registration required.
+
+**Confirmed auction dates (corrected — earlier draft said Aug 13–20):** both days open **Thursday Aug 13, 9:00 AM EST**. Day 1 first lot closes **Aug 19**; Day 2 first lot closes **Aug 20**. 20-second staggered lot closings, 5-minute extended-bidding rule. Preview Aug 10–17.
+
+**⚠️ Confirmed 18% buyer's premium** on Finn/AVGear auctions (their terms). Any hammer price observed must be × 1.18 for true buyer cost. This is also the exact premium SoldTiger charges — our primary marketing foil (see Competitive Positioning).
+
+### Quadrant 4 — Auction SOLD ❌ CONFIRMED DEAD END (verified on a closed lot, July 28, 2026)
+
+⚠️ **Settled empirically — do not reopen.** A completed June-auction lot was opened directly on `auctions.josephfinn.com` (Lot 5, "(4) Elation ELED Fresnel 150's," marked *Completed / Bidding complete*). It shows starting bid, increment, and watcher count — **and NO winning/hammer price.** Finn strips the realized price the moment a lot closes. The sold price is not published post-close, not even to a registered account.
+
+So this dead-ends two ways at once:
+1. **Not published** — there is no historical hammer-price archive on the site to obtain, by any means. The data literally isn't there after close.
+2. **Terms forbid reuse anyway** — even the *live* high bid is covered by Website Usage §d.iv (no commercial reuse) and the bidding subdomain's robots.txt blocks automation. This is attorney question #10, but the practical answer already makes it academic on the archive side.
+
+**Same posture as SoldTiger.** Neither publishes post-close realized prices in an obtainable, usable form. **The auction-sold tier is closed. Do not build an ingest for it.** The only residual value is eyeballing the live high bid on a few priority models in the final seconds before they close during Aug 13–20 — a handful of hand-noted points for market feel, not a dataset, and per the terms it stays "market awareness," not product input. (Own-transaction sold data — the weight-1.00 gold standard — is unaffected and remains the real long-term answer to the sold-price problem.)
+
+### The calibration play this unlocks
+
+AVGear is the ONLY source selling the same categories, same grading, same inventory through BOTH a fixed-price channel (Q1, asking) and an auction channel (Q4, realized). If Q4 yields prices, the Q1-ask ÷ Q4-clear ratio per category is the exact auction-to-asking calibration factor the pricing engine needs while own-transaction volume builds. No other source gives both halves from one seller.
+
+---
+
+## DATA SOURCE STATUS TABLE — verified July 28, 2026
+
+**Read this before building any scraper.** Status reflects what was actually checked, not what was assumed. Anything marked UNVERIFIED has not been tested — do not plan around it.
+
+### Legend
+- ✅ **VERIFIED** — confirmed working or confirmed available
+- ❌ **FAILED** — confirmed unavailable, do not build
+- ⚠️ **UNVERIFIED** — not tested; assumption only
+- 🔶 **CONDITIONAL** — available but with a constraint that changes how it can be used
+
+### Sold price sources
+
+| Source | Sold data | Status | Detail |
+|---|---|---|---|
+| **AVauction own transactions** | ✅ | Zero today | The only fully trustworthy source. Grows from launch. Weight 1.00. |
+| **eBay (official API)** | ❌ | FAILED | Finding API `findCompletedItems` deprecated, rate-limit errors in Production. Marketplace Insights is Limited Release, gated to approved partners, routine denials. |
+| **SoundBroker `/sold/`** | 🔶 | PAYWALLED — $100/yr, terms read, no use restrictions found | "Sold price information" is an EXPLICIT listed benefit of the VIP-Loyalty Club ($100/12mo, $200/24mo, $300/48mo). Seller's Agreement and membership page both read in full: NO anti-scraping clause, NO automated-access clause, NO commercial-use restriction — only a liability disclaimer. Caveats: checkout/registration may present additional terms not yet seen; account termination possible regardless of terms; competitor-relations risk in a small industry. **Next step: buy the $100 membership, look at the archive manually — depth, model searchability, touring-gear coverage — before deciding anything about extraction.** Archive contents entirely unknown. |
+| **LiveAuctioneers** | ⚠️ | UNVERIFIED, kept in | Free 29M-record database, keyword-searchable, no paywall. Google search for CL5/d&b/grandMA surfaced nothing, but that's ranking, not their index — likely carries speakers/mixers/mics from estate & general-audio sales. ⚠️ Consumer-audio comps ≠ pro-touring comps; separate them or they skew the gauge. Search inside their DB to confirm coverage before building. |
+| **SoldTiger (Tiger Group)** | 🔶 | LOGIN PENDING — partial data already public | **Best catalog match of any source.** $20M at-cost AV sales — Barco, Claypaky, Christie, Martin Audio, Sennheiser, Yamaha, ETC; projectors, truss, video wall, LED, consoles, rigging. 96–99% sell-through. Runs on Bidpath. **What is already visible logged out: closed catalogs are public — lot names, quantities, and sold/unsold status. Only the realized price is gated ("Winning Bid: N/A").** That means sell-through and supply data are obtainable today without an account; only the price half is blocked. **Registration blocker: the signup form is broken — the eWAY `eCrypt` payment-encryption script fails to load (likely ad blocker / privacy extension), so nothing ever submits. Fix: clean browser with extensions disabled, or register by phone — (805) 497-4999, business hours. Expect a ~$300 card hold for bidder registration.** **Note: Tiger markets its own proprietary auction-results data as a differentiator — unlikely to publish lot prices freely even to registered bidders.** |
+| **AVGear auctions** | 🔶 | josephfinn.com — CORRECTED JULY 2026, independent source | Bimonthly pro-AV-only auctions (Feb/Apr/Jun/Aug/Oct/Dec — six per year, NOT quarterly; earlier wording was wrong). **Earlier claim that these run through SoldTiger was WRONG — they run on josephfinn.com (Joseph Finn Co., MA auctioneer).** AVGear and SoldTiger are genuinely two independent sold-price sources on two different platforms. Register at josephfinn.com via the AVGear auctions page. **Next live auction: opens Aug 13, 2026, closes Aug 19–20 — one week before Korea departure. Featured lots are exactly our catalog: (4) grandMA2 full-size + (2) Ultralight, Avid S6L-24D, Soundcraft Vi1000 NIB, (28) Martin Mac Viper Performance, NEXO PS15 rigs, Panasonic laser projectors, 200+ Chauvet lots.** Test: check whether josephfinn.com shows realized prices on PAST AVGear auctions (quarterly back to Dec 2024). Live auction = free real-time price observation regardless. |
+| **AVLAuction** | 🔶 | Liquidation format | Real pro AV — moving heads, line arrays, LED panels, projectors, trussing, European rental companies. **All items start at €10.** Euro-denominated, European buyer pool, small/new operation. Produces floor prices, not comps. `auction_sold_liquidation`, excluded from median. |
+| **West Auctions** | 🔶 | Liquidation format | Real AV category. As-is, untested unless noted, local pickup only, no shipping, individual lots mixed with bulk pallets. Systematic discount. `auction_sold_liquidation`, excluded from median. |
+| **Reverb API** | ✅ **VERIFIED — 658 graded sold rows pulled July 28** | Working endpoint is `/api/listings/all?state=sold` (NOT `price_guides`, which 403s and isn't needed). Real realized prices + condition grade per listing, 53/60 priority models covered including heavy iron. Clean source: public API + personal token (`public` scope), no robots.txt or commercial-reuse wall. `source_class = marketplace_sold`, weight 0.60. Staged to `reverb-sold.json`; import pending the source_class/grade migration. Earlier worry that category fit was too narrow (guitars/pedals) was WRONG — consoles, line arrays, wireless, lighting, projectors all returned sold data. |
+| **SoldComps (3rd party)** | 🔶 | Available, ToS/provenance risk | sold-comps.com. Up to 240 sold listings per request, 8 eBay sites, 90-day history cap. Per-request pricing. Obtains data by scraping eBay's sold search. |
+| **Apify actors (3rd party)** | 🔶 | Available, ToS/provenance risk | ~$0.02/record + $0.10/run. Outlier fencing, lot normalization, A–D confidence grade. Vendor explicitly assigns ToS compliance responsibility to the user. |
+
+### Active / asking price sources
+
+⚠️⚠️ **READ THIS BEFORE TRUSTING THE ✅ MARKS BELOW. VERIFIED JULY 28, 2026 AGAINST THE LIVE DATABASE.**
+
+**`market_prices` contains 0 rows. Zero asking prices, zero sold prices, zero distinct models, zero sources. Nothing has ever been written to it.**
+
+"✅ VERIFIED" in this table means **SEEDING-PROVEN ONLY** — the scraper ran, the site was scrapeable, and manufacturer/model data landed in `master_equipment`. It does **NOT** mean the scraper writes prices. These are two different states and collapsing them created a false impression that a pricing dataset already existed:
+
+| State | Meaning | Current count |
+|---|---|---|
+| **SEEDING-PROVEN** | Scraper runs, site scrapeable, catalog data captured | 7 of 7 scrapers ✅ |
+| **PRICE-WRITING** | Scraper writes priced rows into `market_prices` on a schedule | **0 of 7** ❌ |
+
+**The only finished data asset is the catalog (268,048 products). There is no price data of any kind.** Phase B is the work of taking seeding-proven scrapers and extending them to capture and store prices — larger than "run the scrapers we already have."
+
+| Source | Scraper status (seeding only) | Detail |
+|---|---|---|
+| **GearSource** | ✅ VERIFIED | Seeding scraper built and run successfully. Site is scrapeable. Asking-price capture is a Phase B extension of existing code. |
+| **Gearsupply** | ✅ VERIFIED | Same. ⚠️ **No longer the sole "most serious threat" — see AVGear.** |
+| **SoundBroker (live listings)** | ✅ VERIFIED | Live listings scrapeable — **distinct from the paywalled `/sold/` archive.** ~54,700 listings. ⚠️ **Displayed prices include a 10–15% broker markup ($150–200 flat under $1,000). Correction required — see source markup bias.** D2B listings are exempt. |
+| **AVGear buy-it-now** | ✅ **PULLED IN FULL July 28 — 23,052 products → 2,029 used comps + 5,194 new anchors + 10,827 catalog records w/ 291 categories.** ⚠️ **Also now assessed as a top-tier competitive threat alongside Gearsupply:** 30,000 sq ft warehouse, 40+ yrs combined experience, multi-level QA, two-axis F1–F5/C1–C5 grading published per item, 14-day guarantee, resale + consignment + auctions under one brand. | `avgear.com/products.json` — clean structured data, no key, no auth, no HTML scraping. Whole active store in a few calls at `?limit=250&page=N`. Seeding scraper also built and run. `source_class = dealer_asking`. **Wire this first — see the AVGear Four Quadrants section.** |
+| **UsedAVGear** | ✅ VERIFIED | Seeding scraper built and run. |
+| **Clair Used Gear** | ✅ VERIFIED | Seeding scraper built and run. **Note: Clair also operates an eBay store — relevant to the eBay density question.** |
+| **eBay Browse API** | 🔶 BLOCKED | Keyset created but **DISABLED** pending Marketplace Account Deletion notification endpoint. 5,000 calls/day once enabled. Active listings only, 10,000-item result cap. |
+| **Solaris Network** | ⚠️ UNVERIFIED | Never built, never tested. |
+| **CUE Sale** | ⚠️ UNVERIFIED | Never built, never tested. |
+| **Audiogon** | ⚠️ UNVERIFIED | Never built, never tested. |
+| **Sweetwater Gear Exchange** | ⚠️ UNVERIFIED | Never built. Live Sound & Lighting category only. |
+| **Guitar Center Used** | ⚠️ UNVERIFIED | Never built. Pro Audio category only, low weight. |
+| **B&H Photo Used** | ⚠️ UNVERIFIED | Never built. |
+| **ChurchGear** | ⚠️ UNVERIFIED | Never built. |
+| **HifiShark** | ⚠️ UNVERIFIED | Never built. Meta-search across 600+ audio marketplaces. Asking prices only. High leverage if it works. |
+| **USAudioMart** | ⚠️ UNVERIFIED | Never built. |
+| **BidSpotter** | ⚠️ UNVERIFIED | Never built. Auction aggregator. |
+| **Jones Swenson** | ⚠️ UNVERIFIED | Never built. Texas auctioneer, has run Freeman AV liquidations. Irregular cadence. |
+
+### Catalog / reference (not pricing)
+
+| Source | Status | Detail |
+|---|---|---|
+| **AV-iQ** | ✅ COMPLETE | 239,661 records, 99.1% success, 2,141 non-critical failures, clean termination after retry pass. Not a pricing source — MSRP and specs only. No further passes needed. |
+| **All 7 seeding scrapers combined** | ✅ COMPLETE | 268,048 unique products in `master_equipment`. |
+
+### Pending actions — every open question with its price attached
+
+Nearly every unknown left in this table has a cheap, specific test. The whole sold-data picture resolves for roughly $100 (plus a refundable bidder hold) and an afternoon.
+
+| Action | Cost | Resolves |
+|---|---|---|
+| Pull `avgear.com/products.json` | Free, now | Active buy-it-now — done once wired |
+| Tiger phone registration — (805) 497-4999 | Free + ~$300 card hold | SoldTiger "Winning Bid: N/A" question |
+| Joseph Finn registration + past-auction check | Free | AVGear auction archive back to Dec 2024 |
+| SoundBroker VIP-Loyalty membership | $100 | Sold archive contents — depth, searchability, coverage |
+| ~~Reverb token → price_guides~~ ✅ DONE July 28 | — | RESOLVED: `/api/listings/all?state=sold` works, 658 graded rows staged. Next step is IMPORT, not test — see What Remains. |
+| LiveAuctioneers search "Yamaha CL5" inside their DB | Free, 2 min | Kill or keep |
+| eBay manual density check, ~20 models | Free, 15 min | Whether SoldComps/Apify are worth pursuing |
+| Register at auctions.josephfinn.com, watch Aug 13–20 for OWN market awareness | Free | See real clearing prices — ⚠️ VIEWING only; ingesting into the product is blocked pending attorney Q#10 |
+
+**Sequencing note:** the AVGear auction (opens Aug 13; Day 1 closes Aug 19, Day 2 Aug 20) is the only item on this list with an expiry date, and it lands one week before Korea departure. ⚠️ But its value is now capped by attorney Q#10 — you can register and watch clearing prices for your own market feel, you CANNOT capture them into the pricing engine until legal clears it. So the deadline pressure is softer than earlier drafts implied: it's a market-awareness window, not a data-capture window.
+
+### Summary — what this actually leaves
+
+- **Verified sold sources today: none.** Own transactions are the only trustworthy path and they start at zero.
+- **One confirmed dead end:** eBay official API. SoundBroker's sold archive moved from dead end to open question — it's an advertised $100/yr membership benefit with no use restrictions found in their published terms. Contents unknown until someone looks.
+- **Two liquidation sources** that are real but measure the floor, not market value.
+- **SoldTiger is half-open, not closed.** Closed catalogs are public — lot names, quantities, sold/unsold status. Only realized price is gated. Sell-through and supply signals are obtainable today with no account at all.
+- **AVGear auctions are an independent sixth sold source**, on josephfinn.com, not SoldTiger. The two do not collapse into one.
+- **Three tests still outstanding** before anything else: Reverb `price_guides`, SoldTiger post-close price visibility, LiveAuctioneers coverage (search their own DB, not Google). Combined test time: under an hour. See the pending actions table.
+- **Asking-price coverage is genuinely strong** — six scrapers already built and proven against their targets, plus AVGear's public JSON endpoint, which is cleaner than any of them.
+
+**Consequence for the build:** the Phase 1 AI pricing suggestion is supportable on asking-price data with an honest confidence indicator. The Phase 2 Price Index gauge is not supportable yet and must not ship projecting confidence it does not have. See the confidence weighting model and display governance rules.
 
 ---
 
@@ -699,14 +1040,35 @@ The design should make a rental house operator think "this was built by people w
 ---
 
 ## Condition Grading System
-Definitions to be finalized by Tom — placeholder below:
 
-- **Grade A — Tour Ready:** Fully operational, all original components present, road cases included, passes full output test
-- **Grade B — Rental Ready:** Fully operational, minor cosmetic wear, may be missing non-essential accessories
-- **Grade C — Functional with Disclosures:** Operational but known issues disclosed, sold as-is with specifics listed
-- **Grade D — Parts/Repair:** Not fully operational, sold for parts or repair, no return policy
+## GRADING SYSTEM — DECIDED July 28, 2026. This is final. Build to it.
 
-**Tom to review and reword all definitions with industry-accurate language.**
+⚠️ **This supersedes every earlier grading note in this document, including the "Tour Ready / Rental Ready / Parts" labels that appeared in prior drafts and in the current gauge component.** Those labels were invented in an earlier build session, were never real trade vocabulary, and are being removed. **Sean owns grade definitions — NOT Tom. Do not route this to Tom.** (Earlier drafts assigned it to him; that was wrong and is corrected here.)
+
+**The scale — five tiers, four priced, one not.** Modeled on Kelley Blue Book and Reverb, the two standards in adjacent used-gear markets. Both use Excellent / Very Good / Good / Fair and refuse to put a value on anything below Fair. We do the same.
+
+| Letter | Name | On the gauge? | Feeds the median? |
+|---|---|---|---|
+| **A** | Excellent | ✅ needle at top | ✅ yes |
+| **B** | Very Good | ✅ | ✅ yes |
+| **C** | Good | ✅ | ✅ yes |
+| **D** | Fair | ✅ needle at bottom, still a real price | ⚠️ stored, LOW weight — see below |
+| **—** | Poor / For Parts | ❌ **NO gauge, NO needle, NO range** | ❌ never |
+
+**Poor is NOT "Grade E."** It is a separate listing state, outside the A–D scale, that suppresses the gauge entirely. The listing shows "Sold as-is — no price estimate," the reasoning being that Poor/parts condition varies too widely to price meaningfully. This matches KBB, which won't value a vehicle below Fair. The gauge component renders Poor with no needle and no range — see the corrected gauge spec.
+
+**Buyer-facing definitions (market-standard language — do not reword into invented terms):**
+- **A — Excellent:** Looks and performs like new. Tested to full manufacturer spec, only minor signs of use. Ready for high-profile touring and broadcast.
+- **B — Very Good:** Fully functional, minor cosmetic marks such as light scuffs or rack rash. No effect on performance.
+- **C — Good:** Works properly with visible cosmetic wear from regular professional use. Everything essential is intact.
+- **D — Fair:** Functional but with noticeable wear or minor known issues, disclosed in the listing. Priced accordingly.
+- **Poor / For Parts:** Not fully operational, or sold for parts, repair, or salvage. Sold strictly as-is, no returns. Inspect before bidding.
+
+**⚠️ GAUGE GRADE FLOOR — a settings rule, store it in `pricing_engine_settings` alongside the two existing gauge thresholds.** Add `gauge_grade_floor = good`. The gauge median feeds ONLY on grades A/B/C (Excellent/Very Good/Good). This mirrors Reverb's Price Guide, which averages good-or-better and excludes fair/poor/non-functioning. Grade D (Fair) is stored and shown, but weighted low and excluded from the median that positions the needle; Poor never enters at all. **Consequence: this raises the bar for the gauge to display — with zero verified sold data today, the empty-gauge state is even more likely at launch, which is further support for the noindex-product-pages decision in SEO Structural Advantage.**
+
+**Two-axis note (AVGear reference, NOT our model).** AVGear grades on two separate axes — Functionality F1–F5 and Cosmetic C1–C5 — verified on their live product pages July 28. A two-axis scale is genuinely better than a single letter (it separates "works but ugly" from "pretty but broken"). **We considered it and chose single-scale A–D anyway,** because the five-word scale is what sellers already know from Reverb and KBB, and because there is working four-grade gauge code to build on. The QC checklist still captures functional and cosmetic observations separately, so the second axis can be surfaced later without a migration if ever wanted. This is a deliberate decision, not an oversight.
+
+**Their operation, for the competitive record:** 30,000 sq ft warehouse, 40+ years combined Pro AV experience, multi-level QA on every inbound item, 14-day Pre-Owned Guarantee, Make an Offer flow, trade-in funnel, resale + consignment + auctions under one brand. **Grading is NOT our differentiator against AVGear** — they grade more granularly, inspect in a real warehouse, and back it with returns. **Our gap is price discovery, not quality assurance:** they tell a buyer the condition of the one unit they're selling at the price they set; nobody tells anyone what a thing is WORTH. We are a marketplace with competing sellers and proxy bidding that discovers a clearing price. Sharper claim, harder claim — it depends on Phase B working.
 
 ---
 
@@ -797,8 +1159,29 @@ All emails should sound human and professional — not legal, not robotic.
 ---
 
 ## Partners
-- **Sean** — Port St. Joe, FL. Web and graphic design background. Building the platform.
-- **Tom** — Nashville, TN. AV industry insider. Marketing, seller relationships, newsletter intelligence, concierge quality check. 50/50 partnership. Currently anonymous.
+- **Sean** — Port St. Joe, FL. Web and graphic design background. Building the platform. Public face of the company.
+- **Tom** — Nashville, TN. AV industry insider. 50/50 partnership. Marketing, seller relationships, newsletter intelligence, concierge quality check. **⚠️ PUBLICLY ANONYMOUS — see the constraint below. This is not optional.**
+
+---
+
+## ⚠️ TOM'S ANONYMITY — HARD CONSTRAINT, READ BEFORE BUILDING ANY PUBLIC-FACING FEATURE
+
+**Tom's employer must not learn he has an ownership stake in AVauction.com. If they do, he loses his job.** Professional AV is a small industry — the people who read this site, subscribe to the newsletter, and sell gear here are the same people who work with and around his employer. Exposure is not theoretical.
+
+**"Silent" means invisible, not inactive.** Tom does the work — business development, seller relationships, newsletter intelligence, grading language, industry judgment. The constraint is purely on visibility.
+
+**Absolute rules — no exceptions until Sean says the constraint has lifted:**
+- Tom's name appears NOWHERE public. No About page, no team page, no founder bio, no footer, no press release, no social profile, no `<meta author>`, no code comments that ship to the client.
+- No bylines. Newsletter and all editorial publish as AVauction, never under a personal name or a recognizable personal voice.
+- No named quotes or testimonials attributed to him.
+- No signing public-facing contracts, partnership agreements, or vendor deals in his own name. Sean signs.
+- No in-person representation of AVauction to customers, vendors, or at industry events under the AVauction banner.
+- No photographs.
+- Do not generate placeholder team/about content that includes a second founder — leave it as Sean only.
+
+**Design principle:** every feature that draws on Tom's industry credibility must attach that credibility to the **AVauction brand**, never to a named individual. Published criteria and process, not "our guy vouches for it."
+
+**When it lifts:** once the company is established enough that Tom can leave his employer. Sean decides and will say so explicitly. Until then, assume the constraint is active.
 
 ---
 
@@ -1126,7 +1509,7 @@ For large sellers with significant inventory who won't photograph and list gear 
 White glove listings are the highest quality listings on the platform — professional photos, complete documentation, verified serials, accurate grades. They perform better at auction, build buyer confidence, and set the standard for what a great listing looks like. A single white glove visit to a large rental house can add hundreds of clean product records to the master equipment database.
 
 **Phase 1 approach:**
-No special platform feature needed yet. Tom or Sean flies out, photographs, uploads through the regular seller app on the seller's behalf. Treat it as an operational process before building it as a platform feature. Build the dedicated white glove admin flow when volume justifies it — dedicated job management, assigned photographer, scheduled visit, bulk upload tool.
+No special platform feature needed yet. Sean flies out, photographs, uploads through the regular seller app on the seller's behalf. ⚠️ In-person customer-facing work is Sean's — see the anonymity constraint. Treat it as an operational process before building it as a platform feature. Build the dedicated white glove admin flow when volume justifies it — dedicated job management, assigned photographer, scheduled visit, bulk upload tool.
 
 **Who handles white glove outreach:**
 White glove outreach requires someone who understands the professional AV industry and can have a credible conversation with operations managers at rental houses. "We'll come to you, handle everything, get your gear sold." That's a much easier yes than asking a busy operations manager to spend their weekend uploading photos.
@@ -1140,7 +1523,7 @@ Large auction lots get reduced commission rates. A rental house bringing signifi
 Specific percentages TBD — based on what the market will bear and what competitors charge. The principle is clear: the bigger the lot, the lower the commission rate.
 
 **Enterprise lots:**
-Largest auctions negotiated personally by Tom. No fixed rate — structured as a deal based on inventory value, category, and relationship.
+Largest auctions negotiated case by case. No fixed rate — structured as a deal based on inventory value, category, and relationship. ⚠️ Sean signs and is the named party on any agreement; see the anonymity constraint.
 
 **Why discounts make sense:**
 A large lot at reduced commission still generates significant revenue. More importantly it establishes AVauction.com as the platform serious sellers use for major liquidations. Those auctions drive buyer traffic, build platform reputation, and generate data that enriches the pricing engine.
@@ -1191,7 +1574,7 @@ Internal data flags undervalued gear → platform purchases at listed price → 
 From the outside this looks like a normal transaction. Seller got paid. Buyer got gear. Platform kept the spread. No disclosure required beyond what's in the seller agreement.
 
 **The exit structure:**
-When the company sells, the acquirer buys the platform, the brand, and the published data product. The trading operation and the deep intelligence that powers it stays with Sean and Tom personally. This must be negotiated into the sale agreement explicitly. The acquirer gets the marketplace. Sean and Tom keep the edge and continue compounding it independently post-exit.
+When the company sells, the acquirer buys the platform, the brand, and the marketplace transaction history. There is no published data product — that concept was retired (see Phase 3: the data stays dark). The trading operation and the deep intelligence that powers it stays with Sean and Tom personally. This must be negotiated into the sale agreement explicitly. The acquirer gets the marketplace. Sean and Tom keep the edge and continue compounding it independently post-exit.
 
 ### New Gear Wholesale (Phase 4)
 Buy new gear at wholesale/dealer cost from manufacturers and sell it on the platform alongside used inventory. Authorized dealer relationships with key manufacturers — ROE, d&b, L-Acoustics, Brompton, MA Lighting.
@@ -1204,7 +1587,9 @@ Keep firmly in phase 4 — requires manufacturer relationships, dealer agreement
 
 ## Industry Verified Badge
 
-The highest trust designation on the platform. Invitation only. Cannot be applied for. Granted personally by Tom based on his industry knowledge and direct relationship with the company.
+The highest trust designation on the platform. Invitation only. Cannot be applied for. Granted by AVauction based on direct industry knowledge and a verified relationship with the company.
+
+⚠️ **Never describe this publicly as any individual's personal endorsement.** The credibility attaches to AVauction. Publish the verification criteria and the process; do not publish or imply who performs it. See the anonymity constraint.
 
 **What it signals:**
 Not just that a business has a verified EIN and address — any legitimate business can get that. The Industry Verified badge signals that a senior person at AVauction.com knows this company personally, has confirmed their reputation in the industry, and is putting their credibility behind this seller. At the level of $200,000+ transactions buyers want human judgment behind the trust signal, not just an algorithm.
@@ -1216,7 +1601,9 @@ Not just that a business has a verified EIN and address — any legitimate busin
 - Companies with established reputations in the professional AV industry that can be verified through industry channels
 
 **How it's granted:**
-Tom reaches out personally. Has the conversation. Visits the facility if warranted. Confirms the company is who they say they are, their inventory is real, their operation is legitimate. No application process — invitation only. Tom makes the call.
+Outreach happens through AVauction. The conversation confirms the company is who they say they are, their inventory is real, and their operation is legitimate. No application process — invitation only.
+
+⚠️ Tom drives this using his industry knowledge, but does so **without identifying himself as a principal of AVauction.** Any facility visit or in-person representation is Sean's, not Tom's. Correspondence goes out under AVauction, not a personal name.
 
 **The full trust tier ladder:**
 1. Unverified individual
@@ -1226,7 +1613,7 @@ Tom reaches out personally. Has the conversation. Visits the facility if warrant
 5. Trusted business
 6. Power seller
 7. Enterprise
-8. **Industry Verified** — top tier, invitation only, Tom's personal endorsement
+8. **Industry Verified** — top tier, invitation only, AVauction verification (see anonymity constraint — never framed as an individual's endorsement)
 
 **What the badge unlocks:**
 - Prominent badge displayed on every listing and seller profile
@@ -1234,11 +1621,11 @@ Tom reaches out personally. Has the conversation. Visits the facility if warrant
 - First consideration for white glove listing service
 - Featured placement in newsletter
 - Best available commission rate
-- Dedicated account management from Tom
+- Dedicated account management from AVauction
 - First access to concierge buyer leads
 
 **The business development angle:**
-The Industry Verified conversation is also where Tom pitches white glove service, volume discounts, and enterprise account management. A relationship-building moment dressed as a trust feature. Tom uses his industry credibility to open doors — the badge formalizes that relationship on the platform.
+The Industry Verified conversation is also where white glove service, volume discounts, and enterprise account management get pitched. A relationship-building moment dressed as a trust feature. Industry credibility opens the door — the badge formalizes the relationship on the platform. ⚠️ All of it under the AVauction name.
 
 **Scarcity is the point:**
 Industry Verified should never be common. If every seller has it, it means nothing. Tom keeps the list small and selective. The exclusivity is what makes buyers trust it.
@@ -1250,29 +1637,33 @@ Industry Verified should never be common. If every seller has it, it means nothi
 
 ## Auction Countdown Timer
 
-Every auction listing page and the main auction page shows a live countdown timer to Friday ~2pm ET close. The timer is a core part of the auction experience — it creates urgency and brings buyers back as the close approaches.
+⚠️ **REVISED Aug 16, 2026 — supersedes the "Friday noon bidding opens" model throughout this section.** Bidding now opens Monday noon ET at the drop, for every lot simultaneously, and runs all week — there is no pre-bid state. Bidding **closes** per lot, staggered starting Friday noon ET one every N minutes (tunable, default 5), and auto-extend can push any individual lot later — so there is still no fixed, shared close time for the auction as a whole. Because bidding is open the moment a lot is visible, the lot-close countdown (`LotCloseCountdown`) is now the primary countdown in the product — every lot is live and counting toward its own close from Monday onward. The three-cell "opens in" countdown (`CountdownCells`) survives only for the gap between auctions, counting to the next Monday-noon drop. The countdown timer is a core part of the auction experience — it creates urgency and brings buyers back as each lot's own close approaches.
 
-### Design
-- Four cells in a row — Days, Hours, Minutes, Seconds
-- Each cell has a colored top bar accent — green for days, amber for hours, blue for minutes, red for seconds
-- Large tabular-numeric font for the countdown numbers — easy to read at a glance
-- Progress bar below the countdown fills as the auction week progresses
-- Social proof row — lot count, total bids, watchers — updates in real time via Supabase
-- Auto-extend notice appears when under 5 minutes remaining — "Auction extended — a bid was placed in the final 5 minutes"
-- Status badge changes — Live auction → Closing soon → Auction closed
+### Design — REVISED Aug 16, 2026 (supersedes the Aug 11, 2026 pre-bid-state version, which itself superseded an earlier four-color/four-cell spec)
+- **Precision scales with proximity — show only the units that matter:**
+  - **Between-auctions state (after the last Friday close, until the next Monday-noon drop):** three cells — Days / Hours / Minutes, counting down to the next Monday-noon-ET drop. No seconds. Neutral styling — no colored bars. This is the *only* context `CountdownCells` still appears in — there is no more pre-bid browse state.
+  - **Live, early in the stagger:** Hours / Minutes (Days too if a lot is far down the queue), counting down to *that lot's own* close — never a shared auction-wide close time. Still neutral. This is the default state for every lot, all week, from the Monday-noon drop onward.
+  - **Live, final N minutes of a lot (tunable, default 2 — changed from 5 on Aug 16, 2026):** Minutes / Seconds, rendered **red** — seconds now carry genuine urgency, and red *means* "closing now" rather than decorating a cell. This is also when the auto-extend notice shows and the window the server actually watches for auto-extend — the visual threshold and the real trigger must stay in sync if the tunable changes.
+- **Color is a signal, not decoration.** Neutral until the final-minutes urgency state, then red. Do not reintroduce per-unit colors.
+- Large tabular-numeric font for the numbers — easy to read at a glance.
+- Progress bar below the countdown fills as the auction week progresses (optional; keep subtle).
+- Social proof row — lot count, total bids, watchers — updates in real time via Supabase.
+- Auto-extend notice appears when under N minutes remaining (tunable, default 2) — "A bid in the final N minutes extends this lot N more minutes."
+- Status badge: **Live auction → Closing soon → Auction closed.** There is no more "Upcoming" status — every lot is live from the moment it's visible.
 
 ### Behavior
-- Counts down to Friday 5:00 PM ET — the staggered close window
-- Individual lot pages show the countdown for that specific lot's close time
-- Main auction page shows the countdown to the first lot closing Friday
-- Auto-extend logic — if a bid lands in the last 5 minutes, that lot's timer extends 5 minutes and the auto-extend notice appears
-- When a lot closes the status badge updates to Auction closed and the timer stops
+- The main auction page shows no countdown while lots are live — bidding opened the instant the lots dropped, so there's nothing left to count toward. It only shows a countdown (to the next Monday-noon drop) during the gap between auctions, when there are zero lots.
+- Bidding opens for every lot simultaneously at the Monday-noon drop — the one fixed, shared clock in the system.
+- Once bidding is open, there is no shared "auction closes at X" countdown anywhere. Starting Friday noon, lots close one every N minutes (tunable, default 5) in sequence, and auto-extend can push any given lot's close later still. The main auction page never shows a close countdown — only individual lots do.
+- Individual lot pages show the countdown for that specific lot's own close time, live from the Monday-noon drop onward — the only close countdown that exists in the system.
+- Auto-extend logic — if a bid lands in the last N minutes (tunable, default 2), that lot's timer extends N minutes and the auto-extend notice appears.
+- When a lot closes, its own status badge updates to Auction closed and its timer stops. Other lots keep counting down independently on their own schedule.
 
 ### Where it appears
-- Main auction page — counts to first lot close Friday
-- Individual listing page — counts to that specific lot's close time
-- Seller dashboard — seller sees countdown for their active auction lots
-- Buyer dashboard — buyer sees countdown for lots they are bidding on
+- Main auction page — no countdown while lots are live; shows a countdown to the next Monday-noon drop only during the gap between auctions
+- Individual listing page — counts to that specific lot's own close time, live from the Monday drop
+- Seller dashboard — seller sees countdown for their active auction lots, each counting to its own close
+- Buyer dashboard — buyer sees countdown for lots they are bidding on, each counting to its own close
 
 ### Real-time updates
 - Bid count and watcher count update via Supabase real-time subscriptions — no page refresh
@@ -1296,16 +1687,16 @@ The closest reference point is Bring a Trailer's editorial voice. BaT feels like
 - These moments get screenshotted and shared in AV Facebook groups and Slack channels. That's free marketing.
 - The platform's cultural intelligence comes from genuine industry knowledge — what lands with rental house operators, tour techs, and production managers. Tom contributes this from his experience in the industry.
 
-### The Bill O'Reilly moment — bidding opens Friday noon
-When bidding opens at Friday noon the auction page shows a brief "WE'LL DO IT LIVE" moment. A flash, an animation, a sound clip option — something that acknowledges the chaos of going live. Production people will love it. People who don't get it will just see a normal auction opening. This is the flagship Easter egg — the one that gets shared.
+### The Bill O'Reilly moment — Friday high noon, when closes start firing
+⚠️ **REVISED Aug 16, 2026.** Bidding now opens at the Monday-noon drop, not Friday noon — see Auction Format. The O'Reilly moment moves with the timing model, but NOT to Monday: it now marks **Friday high noon**, the instant staggered closes begin. When the clock hits Friday noon and the first lots start counting down to their close, the auction page shows a brief "WE'LL DO IT LIVE" moment. A flash, an animation, a sound clip option — something that acknowledges the chaos of going live. Production people will love it. People who don't get it will just see the closes starting normally. This is the flagship Easter egg — the one that gets shared.
 
 ### Other moments to build — specific implementation TBD with Tom
 The following are trigger points where something delightful should happen. Specific references, memes, animations, and sounds to be determined by Sean and Tom as they build — they know the industry culture better than any spec document. The point is that these moments exist and are built intentionally.
 
 **Public-facing moments — buyers and sellers see these:**
-- Bidding opens Tuesday — the WE'LL DO IT LIVE moment
-- Auto-extend fires in the last 5 minutes — something acknowledges the chaos of a late bid
-- Auction closes Friday — a moment marking the end of the week
+- Friday high noon, staggered closes start firing — the WE'LL DO IT LIVE moment (corrected Aug 16, 2026 — previously mis-attached to bidding opening, and to the wrong weekday; see Auction Format)
+- Auto-extend fires in a lot's final N minutes (tunable, default 2) — something acknowledges the chaos of a late bid
+- The week's last lot closes — a variable, staggered moment marking the true end of the week, distinct from the Friday-noon O'Reilly moment above, which marks closes *starting*, not the week ending
 - First bid on a new listing — something welcomes the first bidder
 - Reserve met — a subtle acknowledgment that the seller is getting paid
 - Buyer wins an auction — the win confirmation has personality, not just "congratulations"
@@ -1386,26 +1777,29 @@ A persistent banner sits at the top of every buyer-facing marketplace page. It e
 **CTA:** "Join waitlist" — captures email, adds to Loops.so newsletter list
 **Purpose:** Every buy-it-now buyer becomes an auction prospect. Builds the audience before the auction exists. The waitlist email goes out the moment bidding opens.
 
-### State 2 — Auction live, bidding open (Monday through Friday ~2pm ET)
+### State 2 — This week's auction (Monday-noon ET drop through the last lot closing Friday onward — variable)
 **Color:** Green
-**Message:** "WE'RE DOING IT LIVE. [X] lots closing Friday at noon." with live countdown timer
-**CTA:** "View auction →" — takes buyer directly to the auction listings page
-**Countdown:** Days, hours, minutes, seconds counting down to Friday ~2pm ET close — live and ticking
-**Purpose:** Creates urgency for buy-it-now browsers. Every visit to the marketplace reminds buyers that something is closing Friday. Drives auction participation from the buy-it-now audience.
+⚠️ **REVISED Aug 16, 2026 — no more pre-bid/live split.** Bidding opens at the drop, so State 2 is live for its entire span, start to finish:
+- **Message:** "[X] lots live — bidding open now." **No shared countdown** — lots are already biddable from the moment they dropped, each closing on its own staggered clock starting Friday noon, and auto-extend can push any individual lot later. The banner does not tick down to anything; it links straight into the auction, where each lot shows its own close countdown. **CTA:** "View auction →" — takes buyer directly to the auction listings page.
+- **Friday high noon ET — the showdown moment:** this is where the "WE'LL DO IT LIVE" easter egg fires (see Platform Personality), marking the instant staggered closes begin. The banner message can shift to acknowledge it (e.g. "WE'RE DOING IT LIVE. Closes are starting.") — exact copy TBD with Tom.
+**Purpose:** Creates urgency for buy-it-now browsers throughout the week and drives auction participation from the buy-it-now audience.
 
-### State 3 — Between auctions (Friday ~2pm ET through Monday 8am ET)
+### State 3 — Between auctions (after the last lot closes Friday, until the next Monday-noon ET drop)
 **Color:** Amber
-**Message:** "Next drop lands Monday. [X] lots incoming."
-**CTA:** "Browse lots →" — takes buyer to the upcoming auction lots that are visible but not yet open for bidding
-**Purpose:** Keeps auction momentum visible over the weekend. Buyers browse lots before bidding opens. Monday 8am the banner automatically switches back to State 2.
+**Message:** "Next drop lands Monday at noon. [X] lots incoming." **Countdown:** `CountdownCells` (Days/Hours/Min, neutral), retargeted to the next Monday-noon-ET drop instant — the same component and instance the browse page's between-auctions state uses.
+**CTA:** ⚠️ **REVISED Aug 16, 2026** — previously "Browse lots →" to "upcoming lots that are visible but not yet open for bidding." That no longer applies: lots don't exist publicly until the Monday-noon drop itself (reveal and bidding-open now happen at the same instant), so there is nothing to browse during this gap. New CTA needed — likely a waitlist/notify-me action reusing the State 1 mechanism — exact copy and behavior TBD with Tom.
+**Purpose:** Keeps auction momentum visible over the weekend. Monday noon the banner automatically switches back to State 2.
+**Note:** the State 2 → State 3 transition is triggered by the last lot's status actually flipping to closed, not by a clock time — see Technical implementation.
 
 ### Technical implementation
-- Banner state is determined client-side by the current day and time ET
+- ⚠️ **REVISED Aug 16, 2026:** State 2 no longer has an internal pre-bid/live split — it's live for its entire span, so there's nothing left to switch between within State 2 itself.
+- The State 3 → State 2 switch is **time-based**: the fixed Monday-noon-ET drop instant — the same clock that opens bidding for every lot simultaneously.
+- The State 2 → State 3 switch remains **event-based, not time-based**: it fires when the last lot's status flips to closed, not at a fixed clock time. Staggered closes plus auto-extend make the real end time variable, so this transition cannot be driven off "current time ET" the way the State 3 → State 2 switch can.
 - State 1 is a feature flag — set to true until the auction layer is built, then flipped to false permanently
-- States 2 and 3 switch automatically based on the weekly auction schedule
-- Countdown in State 2 is the same component as the main auction countdown timer
+- Countdown in State 3 is the `CountdownCells` component, retargeted to the next Monday-noon drop — State 2 shows no countdown at all, per the countdown timer section
 - Waitlist email capture in State 1 connects to Loops.so — same list as the newsletter waitlist
 - Banner appears on: homepage, listings page, individual listing pages, buyer dashboard
+- Drop/close schedule is a tunable setting, not hardcoded — see `pricing_engine_settings` (`auction_drop_weekday`, `auction_drop_hour_et`, etc., migration `0030_auction_schedule_settings.sql`), the same values the browse page and listing countdowns read from
 
 ---
 
@@ -1520,7 +1914,7 @@ The combination is something neither of them is: a professional B2B gear marketp
 ---
 
 ### Reverb.com as a data source
-In addition to design inspiration, Reverb has an official API that provides access to sold listing data. Add Reverb to the market price scraper alongside eBay, GearSource, Gearsupply, and SoundBroker.
+In addition to design inspiration, Reverb has an official API. ✅ **VERIFIED July 28, 2026 — it DOES expose sold data.** `/api/listings/all?state=sold` returns graded realized prices; 658 rows pulled across 53 pro-AV models. See the Data Source Status Table. The API is documented around managing your own Reverb shop (my/listings, my/orders). A `price_guides` endpoint appears in their HAL link structure but has not been tested. Generate a personal access token and hit it before planning around it. Add Reverb to the market price scraper alongside eBay, GearSource, Gearsupply, and SoundBroker.
 
 Reverb API targets for the scraper:
 - Professional audio consoles — Yamaha, DiGiCo, SSL, Avid, Allen & Heath, Midas
@@ -1529,7 +1923,9 @@ Reverb API targets for the scraper:
 - Microphones and DI boxes — Shure, Sennheiser, Audio-Technica, Radial
 - Cross-reference every listing against master equipment database — only pull models that exist in the database, ignore consumer gear
 
-Reverb sold prices are particularly strong for professional audio. Combined with eBay sold prices, the two sources give comprehensive audio gear pricing from day one of the scraper.
+⚠️ **Two caveats on Reverb, both material.**
+
+First, access is unverified — see above. Second, and independent of access: Reverb's Price Guide covers guitars, basses, amps, pedals, synths and drums. Our catalog is line arrays, LED walls, lighting consoles and video processors. Reverb is genuinely useful for a Yamaha CL5 or an outboard compressor. It is not where a d&b array or a Brompton processor trades. "Strong on professional audio" is true relative to consumer marketplaces and misleading relative to our actual inventory.
 
 ---
 
@@ -1552,7 +1948,7 @@ A detailed look at every platform AVauction.com competes with. Study what each o
 - GearShare — they just launched an AI-powered cross-rental marketplace alongside their sales marketplace. This is smart — same inventory listed for sale AND available for short-term cross-rental simultaneously
 - GearSpotting — proprietary AI search across rental inventories
 - NeedZone — reverse listing tool where buyers post what they need and sellers find them
-- GearIQ (coming 2026) — analytics layer with pricing intelligence and asset utilization data. This is a direct competitor to the AVauction Market Report concept
+- GearIQ (coming 2026) — analytics layer with pricing intelligence and asset utilization data. This is the closest competitor to AVauction's pricing intelligence layer. ⚠️ Note: the "AVauction Market Report" public data product was retired — the data stays dark (see Phase 3). GearIQ competing on published analytics does not obligate us to publish ours; our answer is the Price Index gauge plus Tom's editorial commentary, not a data product
 
 **What they don't do well:**
 - No pricing intelligence visible to buyers or sellers — 22 years of data and no AVauction Price Index gauge
@@ -1785,8 +2181,8 @@ Filter every scraped listing against the master equipment database — only stor
 ### The complete scraper source list — final picture
 
 **Sold price sources (highest quality data):**
-1. eBay API — completed and sold listings
-2. Reverb API — sold listings, strong on professional audio
+1. eBay API — ASKING prices only via Browse API (sold data gated behind Marketplace Insights — see the eBay API section)
+2. Reverb API — ✅ VERIFIED July 28: sold access works (`/api/listings/all?state=sold`), and the narrow-category worry was WRONG — consoles, arrays, wireless, lighting, projectors all return graded sold data. 658 rows staged.
 
 **Asking price sources (secondary quality):**
 3. GearSource — direct competitor, professional AV focused
@@ -1807,13 +2203,13 @@ AV-iQ is a manufacturer product catalog for new gear. It contains MSRP and specs
 
 The resellers listed on AV-iQ are authorized dealers for new gear — companies like Midtown Video, Spinitar, and A-V Services. These are potential future sellers on AVauction.com but their AV-iQ presence provides no used pricing data.
 
-That is 13 data sources feeding the pricing engine. Combined with AVauction.com's own transaction data as it accumulates, this is the most comprehensive professional AV pricing dataset ever assembled.
+That is **14 enumerated candidate sources** above (2 sold-price candidates, 12 asking-price), expanding to **21 total** once the GOLD/SILVER/BRONZE tier sources documented in the next section are added — AVGear auctions, SoldTiger, AVLAuction, LiveAuctioneers, West Auctions, HifiShark, USAudioMart, BidSpotter, Jones Swenson. ⚠️ Earlier drafts variously claimed 21, 14, and 13 for the same list; **14 enumerated + 7 tiered = 21** is the reconciliation. ⚠️ **Candidate, not confirmed** — several were found in July 2026 to be inaccessible, paywalled, or category-mismatched. See the sold_verified definition for current per-source status before treating any of them as available.
 
 ---
 
 ## Additional Scraping Sources — Beyond the Original List
 
-Beyond the 13 sources already documented, there are several more categories of public pricing data worth capturing. These are organized by value tier.
+Beyond the 14 sources enumerated above, there are several more categories of public pricing data worth capturing. These are organized by value tier.
 
 ---
 
@@ -1823,20 +2219,26 @@ Beyond the 13 sources already documented, there are several more categories of p
 These sources were identified as potential sold price data sources but have NOT been fully verified for public accessibility. Before building scrapers for any of these, manually register an account and confirm that final sold prices per lot are publicly visible after an auction closes — without a paid subscription. Some may require login, some may require paid access, some may be genuinely public. Do not assume.
 
 **AVGear.com Auctions (avgear.com/pages/auctions)**
-AVGear runs quarterly professional AV-only auctions — January, March/April, June, August, October, December. 1,600+ lots per auction. Brands include L-Acoustics, Absen, Barco, Christie, d&b Audiotechnik, Shure, Sennheiser, QSC. Their auctions appear to run through SoldTiger.com's platform.
-⚠ Verify: Are final sold prices per lot publicly visible after auction closes, or login/subscription required?
+AVGear runs **bimonthly** professional AV-only auctions — Feb/Apr/Jun/Aug/Oct/Dec, six per year. (Documented as "quarterly" in earlier drafts; the stated months are every two months. Corrected July 28, 2026 — this matters because it sets when the next observable auction falls after the August one.) Archives back to Dec 2024. Brands include grandMA, Avid, Soundcraft, Martin, NEXO, Chauvet, Panasonic, Christie.
+✅ CORRECTED JULY 2026: auctions run on **josephfinn.com (Joseph Finn Co.)** — NOT SoldTiger as previously written. Register via the buttons on avgear.com/pages/auctions.
+⚠ Verify: does josephfinn.com show realized prices per lot on PAST AVGear auctions? Also: SoldTiger's known behavior is to render "Winning Bid: N/A" on closed lots for logged-out visitors — check whether Joseph Finn does the same.
+📅 Next auction: opens Aug 13, 2026, closes Aug 19–20. Watching it live captures real competitive-bid prices on our exact catalog regardless of what the archive shows.
 
 **SoldTiger.com (Tiger Group AV Auctions)**
-Tiger Group runs the largest professional AV auctions in the country — $7M+ in a single two-day sale. Completed auctions show "Closed" status on sale pages. SoldTiger.com has a login page.
-⚠ Verify: Register a free account and check a completed AV auction — are individual lot sold prices visible? Or is this gated behind registration or payment?
+Tiger Group runs the largest professional AV auctions in the country — $7M+ in a single two-day sale.
+✅ SCANNED JULY 2026 (logged out): closed auction catalogs are PUBLIC — full lot lists with names, quantities, sold/unsold status, no login wall, paginated (e.g. soldtiger.com/auctions/catalog/id/568, 747 lots). **But every sold lot renders "Winning Bid: N/A" for logged-out visitors** — the field exists, the amount is withheld.
+⚠ Verify (requires login): does N/A become a dollar figure for registered bidders? Also test the "Highest/Lowest Price" catalog sort while logged in — if it works, prices exist in the data. Registration requires a credit card ($300 authorization hold, released in 3–7 days). ⚠️ Signup form is currently BROKEN — eWAY encryption script (`eCrypt`) fails to load, submit does nothing, confirmed in clean browser. Register by phone: (805) 497-4999.
+📌 Even without prices: public sold/unsold status per lot = sell-through data by model across every Tiger AV auction. That's collectable today.
+📌 Their Terms of Sale (read in full July 2026): no anti-scraping/data-use clauses — it's purely a buyer's contract (deposits, removal, as-is). Note clause 4: Tiger and affiliates may bid in their own auctions for their own account.
 
 **AVLAuction.com**
 European professional AV auction platform. MA Lighting, Clay Paky, Martin, Robe, L-Acoustics, Yamaha, Christie, Barco.
 ⚠ Verify: Are post-auction sold prices publicly visible without login?
 
-**LiveAuctioneers.com — Pro Audio Category**
-Confirmed: LiveAuctioneers auction price results database is a free research tool with 29 million results, updated daily with hammer prices, dating back to 1999. If Tiger Group or AVGear auctions run through LiveAuctioneers, sold prices may be accessible here without scraping SoldTiger directly.
-✓ Appears to be publicly accessible — still verify professional AV gear coverage before prioritizing.
+**LiveAuctioneers.com — ⚠️ UNVERIFIED, kept in**
+The free results database is confirmed real — 29 million results, keyword searchable, no paywall.
+
+⚠️ Free results database, 29M records, keyword-searchable, no paywall. A Google search for CL5/d&b/grandMA surfaced no LiveAuctioneers pages — but that reflects Google ranking, not their internal index, so it's not conclusive. They likely carry speakers, mixers, and microphones through estate and general-audio sales. Caveat that matters: general consumer-audio prices are not professional-touring prices, and mixing them into the median would mislead the gauge. Search their own results database directly to gauge pro-AV depth; if kept, tag records to keep consumer and pro audio separable.
 
 **West Auctions (westauction.com) — AV & Staging Category**
 Northern California auctioneer conducting professional AV auctions on behalf of rental houses.
@@ -1874,16 +2276,18 @@ Asking prices — what sellers hope to get — are the weakest signal. Any selle
 
 Transaction prices from our own platform — what buyers actually paid — are the strongest signal. But these don't exist until the platform has been running for months.
 
-Auction sold results — what competitive bidding produced — are the next best thing to our own transaction data. A sold result from a Tiger Group auction of Solotech fleet gear is a real market price produced by competitive bidding among professional buyers. It's nearly as strong as our own data.
+Auction sold results — what competitive bidding produced — are the next best thing to our own transaction data, **but only from curated retail-format auctions.** A sold result from a Tiger Group auction of Solotech fleet gear is a real market price produced by competitive bidding among professional buyers.
+
+⚠️ **This does NOT apply to liquidation-format auctions.** €10 opening bids, as-is untested lots, and local-pickup-only terms produce floor prices, not market values. See the revised confidence weighting model — liquidation results carry base weight 0.25 and are excluded from the median until the discount can be measured empirically.
 
 This means the scraper priority order should actually be:
 
-1. eBay API — completed sold listings (real transaction prices, high volume)
-2. Reverb API — sold listings (real transaction prices, strong on audio)
+1. eBay API — ⚠️ asking prices only. Sold listings are NOT accessible without Marketplace Insights approval (see the eBay API section)
+2. Reverb API — ✅ VERIFIED July 28 (use `/api/listings/all?state=sold`, NOT price_guides); category fit is broad, not narrow. 658 graded sold rows staged.
 3. AVGear.com auction results — sold prices, pro AV specific
 4. SoldTiger.com auction results — sold prices, largest professional AV auctions in the country
 5. AVLAuction.com auction results — sold prices, strong on European touring gear
-6. LiveAuctioneers.com pro audio results — sold prices, broad coverage
+6. LiveAuctioneers.com — ⚠️ unverified, kept in; search their own DB for pro-AV depth, separate consumer from pro comps
 7. HifiShark — aggregated asking prices across 600+ sources
 8. GearSource — asking prices
 9. Gearsupply — asking prices
@@ -1900,9 +2304,9 @@ This means the scraper priority order should actually be:
 21. USAudioMart — asking prices, individual sellers
 22. West Auctions — sold prices, irregular cadence
 
-That is 21 data sources. The first 6 are sold price sources — the most valuable. The remaining 16 are asking price sources weighted by quality and relevance.
+That is 21 candidate sources (14 enumerated + 7 tiered). ⚠️ **The claim that the first 6 are usable sold-price sources did not survive verification.** eBay sold is unavailable, Reverb is unverified, LiveAuctioneers coverage is unconfirmed (Google shows nothing but their internal DB is untested), and AVLAuction and West Auctions are liquidation-format rather than comps. Treat this list as a research inventory, not a build plan — the per-source status in the sold_verified definition governs.
 
-Update the scraper build in Claude Code to prioritize sold price sources first. Start the auction result scrapers alongside eBay and Reverb from week 1.
+Prioritize sold price sources first — but only after verifying each one is actually accessible and category-appropriate. See the sold_verified definition. Verification precedes scraper construction.
 
 
 
@@ -2466,12 +2870,22 @@ SoundBroker is manual. 10K Used's auction terms are pure as-is. Gearsupply's dir
 7. **Formal fulfillment strike system** — documented, automated, transparent
 8. **Bidirectional reviews** — sellers can review buyers too, creating mutual accountability
 
-**What to flag for the attorney:**
-- Non-circumvention clause language and enforceability
-- Escrow release trigger definition — exactly when does the 72-hour window start and end
-- Dispute freeze authority — what gives the platform the right to hold funds and for how long
-- Seller suspension procedures — due process requirements before account termination
-- Chargeback liability allocation between platform and seller
+**What to flag for the attorney — MASTER LIST. Sean owns this, not Tom.**
+
+⚠️ Tom cannot sign agreements or represent AVauction to third parties — see Tom's Anonymity hard constraint. All attorney contact runs through Sean. Questions #7–#9 are declared in later sections and are consolidated here.
+
+**All ten must be resolved before Stripe goes live (week 10 target).**
+
+1. Non-circumvention clause language and enforceability
+2. Escrow release trigger definition — exactly when does the 72-hour window start and end
+3. Dispute freeze authority — what gives the platform the right to hold funds and for how long
+4. Seller suspension procedures — due process requirements before account termination
+5. Chargeback liability allocation between platform and seller
+6. **Non-circumvention penalty amount** — a specific liquidated-damages figure per breach that will hold up in court. **Two competitor benchmarks now on file:** GearSource stipulates £1,000 per breach plus commission owed; Joseph Finn Co. (Finn/AVGear auctions) uses a payment-default liquidated-damages formula of *the lesser of 20% of invoice or the resale shortfall plus re-marketing costs*, charged to a card authorized at registration. Ours needs a dollar figure, not a placeholder — bring both benchmarks.
+7. INFORM Consumers Act disclosure vs the anonymity-until-escrow model — see the INFORM section
+8. 1099-K filing obligation under separate charges and transfers — Stripe or platform
+9. Buyer default penalty amount — see the Buyer Default Policy section. Benchmark: Finn's 20%-or-resale-shortfall formula above, plus their mechanism of getting explicit card-on-file authorization at registration to charge damages later — worth asking whether our Stripe setup can replicate that consent step cleanly.
+10. **Third-party auction-results data — can we use it at all?** Joseph Finn's bidding platform (`auctions.josephfinn.com`) blocks automated access via robots.txt AND its registration terms (Website Usage §d.iv) prohibit copying/reproducing/reusing site information "with the intent of commercially [exploiting]" their services. SoldTiger similarly gates and monetizes its own results. **Question: is there any lawful path to using publicly-viewable auction hammer prices from houses whose terms forbid commercial reuse — and if not, what is the clean alternative for realized-price comps?** This currently blocks the entire auction-sold data tier. See Data Source Status.
 
 
 
@@ -2485,8 +2899,62 @@ SoundBroker is manual. 10K Used's auction terms are pure as-is. Gearsupply's dir
 
 ---
 
-## Current State
-Landing page live at avauction.com. Full platform build starting now. January public launch target.
+## Current State — Updated July 28, 2026
+
+**Landing page live at avauction.com. Backend core is BUILT. Frontend is the remaining work.**
+
+### Backend — complete and verified
+Built in the Week 2 Claude Code sessions (Fable 5). 13 commits, migrations 0001–0028, 280+ empirical verification checks passed.
+
+- All 23 tables created with Row Level Security
+- Proxy bidding engine (21/21 checks)
+- Auction close logic (24/24)
+- 12-state transaction machine
+- Stripe Connect escrow — separate charges and transfers pattern, verified against real Stripe sandbox money movement (20/20)
+- pg_trgm fuzzy match system (22/22)
+- Pricing engine — weighted median, IQR, time decay, bootstrap confidence (21/21)
+- Buy-it-now flow (19/19)
+- Seller listing submission with QC grading and quality scores (27/27)
+- Search and browse API with haversine distance sorting (24/24)
+- Auth flows, including a privilege-escalation fix proven with live JWTs (20/20)
+- Admin panel APIs with audit trail (25/25)
+- 37-check empirical security audit — see Security section for the two critical RLS failures it caught
+
+### What remains
+
+⚠️ **REPRIORITISED JULY 28, 2026.** `market_prices` verified empty (0 rows). Phase B moves up — it is the blocker for the pricing engine, the gauge, and product-page SEO, all of which are currently inert. SSR product pages drop OFF the pre-launch list entirely; they cannot do anything useful until Phase B has run. See SEO Structural Advantage.
+
+**Migration prerequisite before Phase B writes its first row:** add `source_class` to `market_prices` (spec'd in the confidence weighting model, never migrated). The table is empty, so this is free now and expensive later.
+
+⚠️⚠️ **NEXT-SESSION TASK #1 — the highest-value thing waiting (staged July 28, 2026):**
+**Import the Reverb sold data.** `reverb-sold.json` on Sean's machine holds **658 real, condition-graded sold prices** across 53 priority models — the first realized-price data the project has ever had, and the answer to the empty-`market_prices` problem. It is staged, reviewed-ready, and blocked only on the migration. Sequence:
+1. Migration: add `source_class` (enum incl. `marketplace_sold`), and confirm `inferred_grade`/`grade_confidence`/`sold_price` columns accept the Reverb rows. Table is empty → free migration.
+2. Review `reverb-sold.json` — especially the A-grade over-representation (Brand New maps to A; decide whether to add an `is_new_in_box` flag so new dealer stock isn't counted as a used-Excellent comp).
+3. Load into `market_prices_staging`, manual-promote per the Staging-and-Review Workflow.
+4. Then extend: the puller (`pull-reverb-sold.mjs`) covers 60 seed models; widen the model list for fuller coverage, and schedule it. Reverb endpoint: `/api/listings/all?query=MODEL&state=sold`, token in `.reverb-token`, `public` scope.
+This is what makes the gauge work. Do it first, do it fresh, do it carefully.
+
+1. Phase B pricing scrapers — ⚠️ **source availability must be verified first; see the Data Source Status Table and the sold_verified definition.** ⚠️ **Reverb is now VERIFIED as the primary sold-price source (658 graded rows staged) — it is no longer "unverified" as older lines in this doc say.** ⚠️ **This is larger than "run the existing scrapers." The 7 seeding scrapers are seeding-proven, not price-writing — extending them to capture and store prices on a schedule is new work. See the Active / asking price sources table.** **Start with `avgear.com/products.json` — it is live, public, structured, and needs no scraping.** Then eBay Browse (asking only), Reverb (unverified), SoundBroker sold archive (PAYWALLED — attorney question). Must write to `market_prices_staging` with manual promotion — see Staging-and-Review Workflow. **eBay prereq: account-deletion notification endpoint, or the keyset stays disabled.**
+2. INFORM Consumers Act compliance module — REQUIRED BEFORE LAUNCH
+3. Wire the 7 seeding scrapers into `scraper_logs`
+4. ALL frontend — seller gear entry form, public listing pages, auction UI, admin panel, dashboards
+5. Email notifications (Loops.so) and newsletter template
+6. Mobile optimization + SEO — ⚠️ **SSR product pages are NOT a pre-launch item.** `noindex` them at launch; index listing and category pages only. See SEO Structural Advantage for the decision and the gate that reopens it.
+7. Legal pages
+8. Testing with founding sellers
+
+### Schedule constraint
+Sean departs for Korea August 27. Target is code-complete before departure, with the Aug 24–26 window held as buffer. Soft launch after return. January public launch target.
+
+**Dated dependency: the AVGear auction opens Aug 13 (Day 1 closes Aug 19, Day 2 Aug 20).** It is the only realized-price event in our exact categories with a hard date. ⚠️ **However — ingesting its prices is blocked pending attorney Q#10** (Finn's terms forbid commercial reuse; the bidding platform blocks scraping). Watching it live for market awareness is fine and worth doing; building it into the product is not, until legal clears it. Softer deadline than earlier drafts implied.
+
+**Do not rebuild anything in the completed list above. Read the migrations before assuming something is missing.**
+
+**⚠️ THE FEED IS NOT THE SITE — established empirically July 28, 2026.** AVGear's `products.json` shows no condition data at all; their live product pages show a per-item `Condition:` line plus a two-axis grading rubric. Three separate wrong conclusions were reached that night by reasoning from the feed alone: first "they don't grade," then "they grade only what has a number," then finally the truth, found only by fetching an actual page. **Apply this to every source: before concluding a field does not exist, open the page.** A structured endpoint is a convenience, not an inventory of what a site publishes.
+
+**And the converse, which cost us a wrong decision on July 28: do not assume something EXISTS because this document describes it.** `source_class` is specified in detail here and is not a column. `market_prices` is described as the pricing engine's foundation and is empty. **When this document and the database disagree, the database wins. Query it — `information_schema.columns` for schema, `count(*)` for data — before planning around anything either one asserts.**
+
+### Original build order (historical — items 1–9 are done or in progress)
 
 Build order:
 1. Market price scraping service — START THIS FIRST, before anything else. eBay API scraper + competitor scrapers running on day one. Every week it runs makes the pricing engine more valuable. Costs almost nothing to run in the background while everything else is being built.
@@ -2506,6 +2974,8 @@ Build order:
 15. Testing with founding sellers
 16. January public launch
 
+*(Retained for reference. See the status block above for what is actually complete.)*
+
 ---
 
 
@@ -2513,17 +2983,33 @@ Build order:
 
 ## Scraping — Two Phase Approach
 
-**Phase A — Seeding (running now):**
-All sources seed master_equipment simultaneously. AV-iQ running in background. GearSource, Gearsupply, SoundBroker, AVGear, UsedAVGear, Clair Used Gear scrapers built and ready to launch. No price data collected in this phase. Goal: comprehensive master_equipment table before any pricing scraper runs.
+**Phase A — Seeding: ✅ COMPLETE**
+All 7 seeding scrapers have finished their first full pass. `master_equipment` now holds **268,048 unique products**.
+
+- **AV-iQ: COMPLETE at 239,661 records** — 99.1% success rate. The scraper terminated cleanly after its retry pass, which recovered 16 records and left 2,141 permanently failing. Those 2,141 are non-critical: malformed URLs with special characters, non-AV items that don't belong in the catalog anyway (camera lenses, window blinds), and a handful of source-side HTTP 500s. **No further AV-iQ passes are needed.**
+- GearSource, Gearsupply, SoundBroker, AVGear, UsedAVGear, Clair Used Gear — all run, all deduplicated cross-source via `product_key`.
+
+**Note on the catalog estimate:** the working figure was ~270k AV-iQ records. The confirmed catalog size is ~240k. Use **239,661** for all planning — coverage math, SEO page counts, match-rate projections. Do not use the old estimate.
+
+Phase B now matches against the full reference database.
 
 **Phase B — Price scraping (after seeding is solid, ~1-2 weeks):**
-All sources scrape pricing data — eBay API, Reverb API, SoundBroker sold prices page (soundbroker.com/sold/ — historical sold prices going back to 1997), all active listing sources. Higher match rate because master_equipment is already comprehensive.
+All sources scrape pricing data. ⚠️ **Source availability was materially revised in July 2026 — read the eBay API section and the sold_verified definition before building any scraper.**
+
+- eBay — Browse API, **asking prices only**
+- Reverb — unverified, depends on `/api/price_guides`
+- 🔶 **SoundBroker `soundbroker.com/sold/` requires VIP-Loyalty membership ($100/yr) — and "sold price information" is an explicitly advertised membership benefit.** Both the Seller's Agreement and the membership page have been read in full: no anti-scraping, automated-access, or commercial-use restrictions exist in either — only a liability disclaimer. Remaining unknowns: possible additional terms at checkout, account-termination risk on bulk access, competitor-relations optics. **First step is not legal — it's a $100 membership and a manual look at what the archive actually contains.**
+- Auction sold results — see the sold_verified definition for per-source status
+
+Higher match rate because master_equipment is already comprehensive.
 
 **Why two phases:**
-Match rate on eBay and Reverb sold listings depends on master_equipment being populated first. A listing for a Brompton Tessera that has no master_equipment record gets discarded or queued. Running pricing scrapers before seeding is complete wastes data.
+Match rate on any scraped pricing record depends on master_equipment being populated first. A listing for a Brompton Tessera that has no master_equipment record gets discarded or queued. Running pricing scrapers before seeding is complete wastes data.
 
 **Start phase B when:**
-AV-iQ scrape completes AND all Tier 1 dealer scrapers have run at least once. Estimated 1-2 weeks from session 2.
+✅ **This condition is now MET.** AV-iQ is complete and all Tier 1 dealer scrapers have run. Phase B is unblocked and is the next backend session.
+
+Prerequisites for that session: eBay Production API keys (App ID, Dev ID, Cert ID) and a Reverb personal access token.
 
 ---
 
@@ -2570,6 +3056,18 @@ Nothing is unhackable but AVauction.com can be made very hard and unrewarding to
 **Cloudinary API secret** — backend only. Upload presets handle client-side uploads — the secret never touches the browser.
 
 ---
+
+### ⚠️ RLS Lessons from the July 2026 Security Audit — READ BEFORE TOUCHING POLICIES
+
+The 37-check empirical security audit caught two failures that a policy review alone would have missed. Both are now fixed, and both are standing rules.
+
+**1. RLS policies can be entirely inert without base table grants (fixed in migration 0026).**
+Policies existed, looked correct, and reviewed clean — but the underlying tables had no grants, so the policies never evaluated. The configuration appeared right and enforced nothing.
+
+**2. Seller-own policies broke the public marketplace (fixed in migration 0027).**
+Policies scoped to "seller can see their own rows" were not correctly scoped for the anonymous case, so every anonymous visitor got permission errors across the entire public marketplace. The site was, functionally, down for logged-out users while looking fine to anyone logged in.
+
+**The rule:** never accept a policy review as proof of security. Run empirical checks — actually query as anonymous, as a logged-in buyer, as a seller, as an admin, and confirm each role sees exactly what it should and nothing more. Test the anonymous path specifically on every public-facing table.
 
 ### Supabase Row Level Security (RLS)
 
@@ -2634,7 +3132,7 @@ The trading desk is a separate LLC with separate infrastructure. It must never s
 - Server infrastructure
 - Code repositories
 
-Any connection between the trading desk and the marketplace platform is through the documented data licensing agreement only. If the marketplace platform is ever compromised, the trading desk must not be exposed.
+Any connection between the trading desk and the marketplace platform is through the documented **internal** data licensing agreement only — an arm's-length agreement between two entities Sean and Tom own, executed for corporate separation and clean accounting. ⚠️ **This is not external data licensing.** Phase 3 states plainly: no public subscription product, no API access, no data licensing to third parties. The two statements are not in conflict; this one describes an internal instrument, and the wording is now explicit so it cannot be read as a licensing business. If the marketplace platform is ever compromised, the trading desk must not be exposed.
 
 ---
 
@@ -2664,19 +3162,30 @@ Disallow: /market-prices/
 Disallow: /trading-desk/
 
 User-agent: Googlebot
-Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /market-prices/
+Disallow: /trading-desk/
+Allow: /listings/
+Allow: /equipment/
 
 User-agent: Bingbot
-Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /market-prices/
+Disallow: /trading-desk/
+Allow: /listings/
+Allow: /equipment/
 ```
 
-This blocks most automated scrapers from the admin panel, API routes, and any pricing data pages. Search engines are explicitly allowed so product pages get indexed for SEO.
+⚠️ **The Disallow lines MUST be repeated inside each named user-agent group.** Per the robots.txt spec, a crawler obeys only the most specific group that matches it and ignores every other group, including `User-agent: *`. An earlier version of this file gave Googlebot a group containing nothing but `Allow: /`, which explicitly permitted Google to crawl `/admin/`, `/api/`, `/market-prices/`, and `/trading-desk/` — the exact opposite of the intent. Do not "simplify" this back.
+
+This blocks automated scrapers from the admin panel, API routes, and pricing data pages, while leaving product and listing pages open so they index for SEO.
 
 Important: robots.txt is a courtesy convention, not enforcement. Determined scrapers ignore it. The real protection for pricing data is authentication requirements and rate limiting — not robots.txt. Do not rely on robots.txt as a security measure.
 
 ### Before Launch Checklist
 
-- [ ] Empirical security audit passes clean: `npx tsx scripts/audit-security.ts` — probes the full grant/policy matrix (moat tables, bids write path, public browse, own-row isolation, escalation attempts) with real anon + authed clients. Rerun after ANY migration touching grants or policies.
 - [ ] RLS enabled and policies written for every table
 - [ ] Service role key confirmed not in any commit
 - [ ] Admin panel behind authentication and on separate subdomain
@@ -2745,7 +3254,7 @@ bids table:
   created_at
 ```
 
-Auto-extend duration stored in `pricing_engine_settings` as `auction_auto_extend_minutes` (default: 5). Adjustable from admin panel.
+Auto-extend duration stored in `pricing_engine_settings` as `auction_auto_extend_minutes` (default: 2 — changed from 5 on Aug 16, 2026, see Auction Format). Adjustable from admin panel.
 
 ---
 
@@ -2873,11 +3382,36 @@ concierge_requests table:
 
 ---
 
+## Phase B Pricing Scrapers — Staging-and-Review Workflow
+
+**This overrides any earlier text in this document that describes pricing scrapers writing straight into `market_prices`.**
+
+Phase B scrapers — whichever sources survive verification — write to **`market_prices_staging`**, NOT directly to `market_prices`. The first run is reviewed before any record is promoted.
+
+**Each staging record captures:**
+- Raw source data — original listing title, price, URL, sold date
+- Match confidence score
+- Matched `product_key`
+
+**Auto-flag traps for review:**
+- Quantity / lot listings — title contains "lot", "(10)", "bulk", or similar
+- Parts and broken units — "for parts", "not working", "as-is"
+
+**Promotion is manual.** Moving records from `market_prices_staging` → `market_prices` is a deliberate query or admin action. Never automatic, never on a cron, never as a side effect of the scrape.
+
+**When this relaxes:** after first-run match quality is validated and the confidence thresholds are tuned, Phase B may switch to direct writes. Until that validation happens, staging is mandatory.
+
+**Why:** a bad match rate silently poisoning `market_prices` would corrupt the Price Index gauge and the trading desk signal at the same time — the two things the entire business rests on. Garbage in the pricing table is far more expensive than a manual review step.
+
+---
+
 ## Phase B Pricing Scrapers — Location Data
 
-When building the Phase B pricing scrapers (eBay API, Reverb API, SoundBroker sold prices), capture seller location on every market_prices record.
+When building the Phase B pricing scrapers, capture seller location on every price record.
 
-**Fields to add to market_prices:**
+**These fields go on `market_prices_staging` as well as `market_prices`** — see the Staging-and-Review Workflow section above. Location is captured at scrape time and carried through on promotion; it cannot be backfilled later because the source listing may be gone.
+
+**Fields to add to both tables:**
 - `seller_location_city` — text
 - `seller_location_state` — text (2-letter abbreviation)
 - `seller_location_zip` — text where available
@@ -2888,11 +3422,134 @@ The trading desk use case goes beyond knowing what gear is worth — it becomes 
 **The trading desk query this enables:**
 - Find gear priced 15%+ below market median
 - Within X miles of trading desk location
-- Grade B or better
+- Grade A/B/C (Excellent/Very Good/Good) — never Poor/For Parts, which has no reliable market value
 - In target categories (LED walls, line arrays, consoles)
 
 This turns the pricing engine into a geographic deal finder, not just a price signal. The data costs almost nothing extra to collect — eBay returns itemLocation on every listing, Reverb returns seller location in the shipping object.
 
 **Implementation note:**
-Add seller_location_state and seller_location_city to market_prices in the Phase B migration. Zip code where available from the source. Do not attempt to geocode — state and city are sufficient for the trading desk proximity filter.
+Add seller_location_state and seller_location_city to both `market_prices_staging` and `market_prices` in the Phase B migration. Zip code where available from the source. Do not attempt to geocode — state and city are sufficient for the trading desk proximity filter.
 
+
+---
+
+## Competitive Research Findings — Build & Policy Additions (July 2026)
+
+Full research in AVauction_Competitor_Research.md. These are the items that change the build.
+
+---
+
+### ⚠️ INFORM Consumers Act Compliance — REQUIRED BEFORE LAUNCH
+
+Federal law (in effect June 2023) applying to online marketplaces. Penalties up to $53,088 per violation. Was not in prior planning — discovered in competitive/legal research.
+
+**Trigger:** A seller becomes a "high-volume third party seller" at 200+ discrete transactions AND $5,000+ gross revenue in any rolling 12-month period within the prior 24 months.
+
+**Platform obligations once a seller qualifies:**
+1. Collect within 10 days: bank account info, contact info, tax ID (EIN/SSN), working email + phone; for businesses a government-issued record with business name and physical address
+2. Verify within 10 days of receipt; re-certify annually
+3. Disclose identifying info for qualifying sellers in listings or order confirmations
+4. Suspend sellers who don't comply until they do
+5. Provide consumer reporting mechanism — both electronic AND telephonic
+6. Protect the collected data
+
+**Build requirements (backend session, ~1-2 hrs):**
+- Rolling 12-month transaction count + gross revenue tracking per seller with automated threshold detection and admin alert
+- Collection/verification workflow triggered at threshold (most data already collected at seller signup — EIN, business info; gap is government-issued record capture and formal verification step)
+- Annual re-certification email flow (Loops template + cron)
+- Automated suspension for non-compliance (extends existing seller suspension machinery)
+- Disclosure fields surfaced on listings/order confirmations for qualifying sellers
+- General "report suspicious activity" mechanism: form + displayed phone number (extends stolen gear framework)
+
+**⚠️ CRITICAL ATTORNEY QUESTION — #7 on the master list (Sean owns; see What to flag for the attorney):** The INFORM Act disclosure requirement conflicts with our anonymity-until-escrow model for high-volume sellers. How do we reconcile seller anonymity with mandatory identity disclosure for qualifying sellers? Does disclosure at order confirmation (post-purchase) satisfy the Act while preserving pre-purchase anonymity?
+
+**Attorney question #8** (master list): Under separate-charges-and-transfers, confirm whether 1099-K filing obligation sits with Stripe or the platform.
+
+---
+
+### Buyer Default Policy (from Bring a Trailer's playbook)
+
+BaT charges winning bidders who refuse to complete their purchase the full buyer fee (up to $5,000) and bans them. We need an equivalent:
+
+- Winning bidder who fails to pay within the payment window: penalty fee (amount = attorney decision — #9 on the master attorney list), strike recorded, ban after repeated defaults
+- Schema: extend the strike system to buyers (buyer_strikes or generalize seller_strikes to user_strikes)
+- The auction close already creates the transaction at pending_payment — add a payment deadline and a default sweep to the escrow cron
+- Relist flow for defaulted lots: offer to next-highest bidder or auto-bump to buy-it-now
+
+**Auction-house reference model — Joseph Finn Co. terms (studied July 28, 2026, NOT for copying).** A 50-year auctioneer's terms are a checklist of every failure mode in the auction business. Useful mechanics to bring to the attorney, NOT clauses to lift verbatim (copyrighted, drafted for MA/NV, and for a one-sided auction, not a two-sided escrow marketplace):
+- **Liquidated damages on payment default:** lesser of 20% of invoice OR resale shortfall + re-marketing costs. A concrete competitor number for attorney Q#6 and Q#9.
+- **Card-on-file consent at registration** authorizing the house to charge damages later — worth asking whether our Stripe setup can capture equivalent consent cleanly.
+- **25% deposit by end of sale day, balance next business day** — their cash-flow model. Our 72-hour Stripe escrow is gentler on buyers; positioning point.
+- **Buyer pays all rigging/removal/shipping; house does zero logistics** — the opposite of AVGear's "we pack and ship." A live signal about what buyers value.
+- **"As-is/where-is, no warranty"** — every auction house leans on this. ⚠️ It is the OPPOSITE of our trust-and-QC differentiator. Study it as what NOT to adopt wholesale.
+
+⚠️ **The primary contract models for OUR clauses are not auction houses — they are escrow marketplaces.** Finn isn't two-sided and barely touches non-circumvention, escrow triggers, or chargeback allocation, which are our actual hard questions. Pull **Reverb's** and **StockX's** terms of service as the reference models for the escrow-marketplace clauses (the Reverb off-platform-fee note below is one such borrowing).
+
+---
+
+### Off-Platform Fee Recovery (from Reverb's terms)
+
+Reverb reserves the right to charge its fee on any transaction initiated on-platform and completed off-platform, including on evidence of intent to move off-platform. This is the enforcement teeth for our non-circumvention clause. Attorney drafting item — pairs with existing attorney question on non-circumvention penalties.
+
+---
+
+### Failed Payout Pass-Through Fee
+
+GearSource charges $50 per failed payout (PSP pass-through). Our terms should mirror whatever Stripe charges us for failed transfers. Terms language item.
+
+---
+
+### Competitive Positioning — Marketing Copy Ammunition
+
+- vs SoldTiger/Tiger auctions: "No 18% buyer's premium. No as-is gambles. No renting a forklift to pick up your gear." (Tiger charges 18% buyer premium, all sales final as-is where-is, buyer handles removal)
+- vs SoundBroker: "No memberships. No hidden markups. See the real market price before you bid." (SoundBroker adds undisclosed percentage on top of seller's net price, refuses to provide pricing guidance, charges membership fees)
+- vs Gearsupply: "The only weekly auction event in pro AV" + superior escrow/inspection protection
+- Universal: The Price Index. Nobody else tells buyers what gear is actually worth.
+
+---
+
+### ⚠️ Competitive Threat Watch: Gearsupply
+
+Most serious competitor. Founded 2020, Cincinnati. ~5.9% flat fee. As of May 2025:
+- L-Acoustics Certified Pre-Owned partnership (manufacturer-backed refurb + warranty, fulfilled via Gearsupply)
+- Building "intelligent features that integrate with vendors' inventory systems — automatically identifying when gear is underutilised or has reached its optimal resale window" — they are building lifecycle/pricing intelligence
+- Gearsupply Direct (formerly Soundsupply) buys gear in bulk over $50K — their trading desk equivalent, operating openly
+
+They are 2-3 strategic moves from our position. Speed to launch matters. Our defensible differences: the weekly auction habit (they have nothing), richer buyer protection, and the dark data strategy (theirs is public-facing, ours compounds silently).
+
+Phase 2+ opportunity validated by their playbook: manufacturer CPO partnerships with L-Acoustics competitors (d&b audiotechnik, Meyer Sound, Christie) once we have transaction volume.
+
+---
+
+### SEO Structural Advantage
+
+268,048 master_equipment records = 268,048 *potentially* indexable product pages. No competitor has anything close. (Confirmed count as of July 2026, not an estimate.)
+
+⚠️⚠️ **DECIDED JULY 28, 2026 — DO NOT INDEX PRODUCT PAGES AT LAUNCH.**
+
+`market_prices` is empty (0 rows, verified). The gauge needs sold data; there is none. The fallback content layer — dealer asking ranges — needs asking data; there is none of that either. A product page today can show manufacturer, model, and specs, and nothing else.
+
+**Publishing 268,048 near-identical spec pages with no pricing content is thin content at a scale that can suppress ranking domain-wide, not just on those URLs.** That is a self-inflicted wound on a brand-new domain with no authority to spare.
+
+**At launch, index:** listing pages and category landing pages only. **`noindex` all product pages** until they carry real content.
+
+**⚠️ COMPETITIVE INTELLIGENCE — AVGear sets `meta-robots: noindex,nofollow` on their product pages.** Verified directly on two live pages July 28, 2026. Our closest competitor has voluntarily removed ~23,000 product pages from Google. Combined with SoundBroker refusing to guide pricing, **product-page SEO in pro AV is an open field.** This does NOT change the launch decision below — thin content is still thin content, and a competitor's absence is no reason to publish empty pages — but it raises the value of getting the gate passed and makes the eventual Option A more valuable than earlier drafts assumed.
+
+**The gate to reopen this:** a product page earns indexing when it has **≥ 3 asking prices from ≥ 2 distinct sources, scraped within 90 days.** Implement as a per-page check, not a global flag — a page cannot get indexed without passing it, so the system fails safe. Re-run the count after Phase B, index the qualifying set, leave the rest dark.
+
+Three options were weighed. A = index only qualifying pages. B = index nothing but listings and categories. **C = index all 268k with a suppressed gauge — rejected outright, and must stay rejected.** B is correct today only because the qualifying set is currently zero; **A is where this lands once Phase B runs, and the gate above is what turns B into A automatically.**
+
+**Requirements (frontend sessions — apply once the gate is passing, NOT at launch):**
+- Product pages server-side rendered with schema.org Product markup (Next.js SSR already in place)
+- Page title pattern: "[Manufacturer] [Model] — Used Price Range, Specs, Listings | AVauction.com"
+- Category landing pages targeting "used [category]" head terms (used LED wall, used line array, used moving heads, used lighting console, used digital console)
+- Price Index gauge on every product page = unique content no competitor shows (SoundBroker explicitly refuses to guide pricing). ⚠️ **This is the eventual state, not the launch state.** The gauge also obeys `gauge_min_sold_count` and `gauge_min_source_diversity` — below either threshold it shows a range with no needle, and with zero sold sources it shows nothing at all. **Before the gauge works, the content that carries a product page is the dealer asking range** ("N dealers currently asking $X–$Y, median $Z"), which is itself unique and which no competitor publishes either. Build the asking-range module first; the gauge slots into the same pages later, by which time the URLs have age.
+- Brand+model long-tail is where AVLAuction and 10K Used compete — our database depth wins this automatically
+
+---
+
+### Phase 2 Ideas Validated by Competitor Research
+
+- Volume seller tier agreements (GearSource negotiates fees at 50+ listings / $250K+ annual sales) — maps to power seller tier
+- Success-fee-only featured listings (Reverb Bump: bid a % of price, pay only if the boosted listing sells) — better than flat featured fees
+- Longer inspection window option for six-figure purchases (Reverb gives 7 days; 72 hours is tight for a $200K LED wall requiring assembly to test) — attorney + Tom decision, settings-driven so it's a config change
