@@ -9,3 +9,10 @@ dist/
 *.log
 .DS_Store
 state/
+
+# Credentials — never commit
+.reverb-token
+
+# Scraper data dumps (local working data, not source)
+avgear-*.json
+reverb-*.json
