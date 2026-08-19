@@ -26,7 +26,7 @@ export function LotCard({ lot }: LotCardProps) {
 
   return (
     <Link
-      href={`/auction/${lot.id}`}
+      href={`/listing/${lot.id}`}
       className="block overflow-hidden rounded-xl border border-[#222] bg-[#111] transition-colors hover:border-[#333]"
     >
       <div className="relative flex aspect-[4/3] items-center justify-center bg-[#181818] text-[40px] text-[#2a2a2a]">
