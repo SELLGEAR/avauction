@@ -30,7 +30,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 export default function ListingDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [urgent, setUrgent] = useState(false);
-  const { listing, loading, error, applyBidResult } = useListing(id, urgent);
+  const { listing, loading, error, refetch, applyBidResult } = useListing(id, urgent);
   const [photoIndex, setPhotoIndex] = useState(0);
 
   if (loading) {
@@ -38,13 +38,31 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
       <main className="mx-auto max-w-[920px] p-[22px] text-sm text-[#666]">Loading lot…</main>
     );
   }
-  if (error === "not_found" || !listing) {
+  // Only a real 404 means the lot is gone. A failed fetch (network blip,
+  // dev-server compile hiccup) must NOT render as "doesn't exist" — that
+  // misreports a transient failure as a permanently missing lot.
+  if (error === "not_found") {
     return (
       <main className="mx-auto max-w-[920px] p-[22px]">
         <div className="text-sm text-[#999]">This lot doesn&apos;t exist or is no longer listed.</div>
         <Link href="/auction" className="mt-3 inline-block text-sm text-[#4a7aaa] hover:underline">
           ← Back to this week&apos;s auction
         </Link>
+      </main>
+    );
+  }
+  if (!listing) {
+    return (
+      <main className="mx-auto max-w-[920px] p-[22px]">
+        <div className="text-sm text-[#999]">Couldn&apos;t load this lot — connection hiccup.</div>
+        <div className="mt-3 flex gap-4">
+          <button onClick={refetch} className="text-sm text-[#4a7aaa] hover:underline">
+            Try again
+          </button>
+          <Link href="/auction" className="text-sm text-[#666] hover:underline">
+            ← Back to this week&apos;s auction
+          </Link>
+        </div>
       </main>
     );
   }

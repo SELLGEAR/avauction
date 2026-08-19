@@ -34,7 +34,16 @@ export function BidPanel({ listing, onBidResult }: BidPanelProps) {
   const [feedback, setFeedback] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
-    const supabase = createBrowserClient();
+    // Guarded like useListing: a Supabase client that can't init (missing
+    // NEXT_PUBLIC_ env var) must degrade to signed-out, not crash the page.
+    let supabase;
+    try {
+      supabase = createBrowserClient();
+    } catch (e) {
+      console.error("supabase client unavailable, rendering signed-out:", e);
+      setAuthChecked(true);
+      return;
+    }
     void supabase.auth.getSession().then(({ data }) => {
       setToken(data.session?.access_token ?? null);
       setAuthChecked(true);

@@ -36,8 +36,17 @@ export function useListing(id: string, urgent: boolean): UseListingResult {
       if (!background) setLoading(true);
 
       try {
-        const { data } = await createBrowserClient().auth.getSession();
-        const token = data.session?.access_token;
+        // Session lookup is best-effort: if the Supabase browser client
+        // can't init (e.g. missing NEXT_PUBLIC_ env var), degrade to an
+        // anonymous request rather than failing the whole page — the
+        // listing itself needs no auth.
+        let token: string | undefined;
+        try {
+          const { data } = await createBrowserClient().auth.getSession();
+          token = data.session?.access_token;
+        } catch (e) {
+          console.error("supabase client unavailable, fetching anonymously:", e);
+        }
         const res = await fetch(`/api/listings/${id}`, {
           headers: token ? { authorization: `Bearer ${token}` } : undefined,
           cache: "no-store",
@@ -80,8 +89,11 @@ export function useListing(id: string, urgent: boolean): UseListingResult {
     return () => clearInterval(interval);
   }, [fetchListing, isLiveAuction, urgent]);
 
+  // Foreground refetch — shows the loading state and surfaces errors.
+  // Used by the page's Retry button after a failed load; background polls
+  // use fetchListing(true) directly.
   const refetch = useCallback(() => {
-    void fetchListing(true);
+    void fetchListing(false);
   }, [fetchListing]);
 
   const applyBidResult = useCallback((result: PlaceBidResult) => {
