@@ -24,6 +24,12 @@ export async function GET(
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   }
 
+  // Auth resolution is a network round-trip to Supabase Auth with no
+  // dependency on the listing row — start it now so it overlaps the
+  // listing query instead of serializing in front of the second batch.
+  // This endpoint is the hot path during Friday closes (3s polling).
+  const userPromise = getUserFromRequest(req);
+
   const supabase = createServiceRoleClient();
   const { data: l, error } = await supabase
     .from("listings")
@@ -65,7 +71,7 @@ export async function GET(
     return NextResponse.json({ error: "query_failed" }, { status: 500 });
   }
 
-  const user = await getUserFromRequest(req);
+  const user = await userPromise;
 
   const [photosRes, watchersRes, settingsRes, viewerBidRes, viewerWatchRes] = await Promise.all([
     supabase

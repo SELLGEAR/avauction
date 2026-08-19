@@ -26,7 +26,7 @@ export async function sendListingApproved(event: {
   }
   await sendTransactional("listing-approved", email, {
     listingTitle: event.listingTitle,
-    listingUrl: `https://avauction.com/listings/${event.listingId}`,
+    listingUrl: `https://avauction.com/listing/${event.listingId}`,
   });
 }
 

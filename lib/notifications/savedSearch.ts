@@ -31,7 +31,7 @@ export async function alertsForListing(listingId: string): Promise<number> {
     await sendTransactional("saved-search-match", m.email, {
       searchName: m.search_name ?? "your saved search",
       listingTitle: listing?.title ?? "a new listing",
-      listingUrl: `https://avauction.com/listings/${listingId}`,
+      listingUrl: `https://avauction.com/listing/${listingId}`,
       price: Number(listing?.current_bid ?? listing?.asking_price ?? 0),
     });
   }

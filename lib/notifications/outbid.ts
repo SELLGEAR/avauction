@@ -27,6 +27,6 @@ export async function sendOutbidNotification(event: OutbidEvent): Promise<void> 
   await sendTransactional("outbid", user.email, {
     listingTitle: event.listingTitle,
     newBid: event.newBid,
-    listingUrl: `https://avauction.com/listings/${event.listingId}`,
+    listingUrl: `https://avauction.com/listing/${event.listingId}`,
   });
 }

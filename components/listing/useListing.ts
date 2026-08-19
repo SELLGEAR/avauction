@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { bidIncrement } from "@/lib/auction/increments";
 import type { ListingDetail, PlaceBidResult } from "@/lib/auction/types";
 
 const POLL_MS = 10_000;
@@ -87,11 +88,23 @@ export function useListing(id: string, urgent: boolean): UseListingResult {
     if (!result.accepted) return;
     setListing((prev) => {
       if (!prev) return prev;
+      const newCurrent = result.current_bid ?? prev.current_bid;
+      // Recompute the next-minimum locally so BidPanel's "Next minimum
+      // bid" line doesn't lag a poll interval behind an accepted bid.
+      // Uses DEFAULT_INCREMENT_TIERS — if the admin panel ever changes
+      // the ladder this drifts until the next poll, which the server's
+      // own values then correct.
+      const newIncrement = newCurrent != null ? bidIncrement(newCurrent) : prev.bid_increment;
       return {
         ...prev,
-        current_bid: result.current_bid ?? prev.current_bid,
+        current_bid: newCurrent,
         auction_end: result.auction_end ?? prev.auction_end,
         reserve_met: result.reserve_met ?? prev.reserve_met,
+        minimum_next_bid:
+          newCurrent != null && newIncrement != null
+            ? newCurrent + newIncrement
+            : prev.minimum_next_bid,
+        bid_increment: newIncrement,
         viewer: prev.viewer
           ? { ...prev.viewer, is_high_bidder: result.is_high_bidder ?? prev.viewer.is_high_bidder }
           : prev.viewer,

@@ -49,7 +49,7 @@ export async function sendReserveNotMet(event: {
   await sendTransactional("reserve-not-met", email, {
     listingTitle: event.listingTitle,
     askingPrice: event.askingPrice,
-    listingUrl: `https://avauction.com/listings/${event.listingId}`,
+    listingUrl: `https://avauction.com/listing/${event.listingId}`,
   });
 }
 
@@ -71,6 +71,6 @@ export async function sendAuctionExpired(event: {
   }
   await sendTransactional("auction-expired", email, {
     listingTitle: event.listingTitle,
-    listingUrl: `https://avauction.com/listings/${event.listingId}`,
+    listingUrl: `https://avauction.com/listing/${event.listingId}`,
   });
 }

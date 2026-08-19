@@ -49,9 +49,14 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
     );
   }
 
+  const isBuyNow = listing.listing_type === "buy_it_now";
   const isSold = listing.status === "sold";
   const isLiveAuction = listing.status === "active" && listing.listing_type === "auction";
-  const wasBumpedToBuyNow = listing.status === "active" && listing.listing_type === "buy_it_now";
+  // Covers both native buy-it-now listings and auction lots auto-bumped
+  // after a reserve-not-met close — close_auction_lot() nulls the auction
+  // fields on bump, so the two are indistinguishable in the data. Copy
+  // must stay neutral (never claim an auction history).
+  const isActiveBuyNow = listing.status === "active" && isBuyNow;
   const photo = listing.photos[photoIndex] ?? listing.photos[0];
 
   return (
@@ -73,7 +78,7 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
             {listing.condition_grade && (
               <GradeBadge grade={listing.condition_grade} className="absolute left-3 top-3" />
             )}
-            <StatusBadge isSold={isSold} isLive={isLiveAuction} urgent={urgent} />
+            <StatusBadge isSold={isSold} isBuyNow={isBuyNow} isLive={isLiveAuction} urgent={urgent} />
           </div>
           {listing.photos.length > 1 && (
             <div className="mt-2 flex gap-2 overflow-x-auto">
@@ -104,22 +109,27 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
           {isSold && (
             <div className="rounded-xl border border-[#1a5c38] bg-[#0d2218] p-4">
               <div className="text-[11px] uppercase tracking-wider text-[#22ee77]">
-                Sold — auction closed
+                {isBuyNow ? "Sold" : "Sold — auction closed"}
               </div>
+              {/* Buy-it-now sales never touch current_bid — the sale price
+                  is the asking price (see purchase_buy_now, 0022) */}
               <div className="mt-1 text-[28px] font-semibold tabular-nums text-white">
-                {listing.current_bid != null ? `$${listing.current_bid.toLocaleString()}` : "—"}
+                {(() => {
+                  const finalPrice = isBuyNow ? listing.asking_price : listing.current_bid;
+                  return finalPrice != null ? `$${finalPrice.toLocaleString()}` : "—";
+                })()}
               </div>
-              <div className="mt-1 text-xs text-[#888]">
-                {listing.bid_count} bid{listing.bid_count === 1 ? "" : "s"}
-              </div>
+              {!isBuyNow && (
+                <div className="mt-1 text-xs text-[#888]">
+                  {listing.bid_count} bid{listing.bid_count === 1 ? "" : "s"}
+                </div>
+              )}
             </div>
           )}
 
-          {wasBumpedToBuyNow && (
+          {isActiveBuyNow && (
             <div className="rounded-xl border border-[#222] bg-[#111] p-4">
-              <div className="text-xs text-[#999]">
-                This lot didn&apos;t meet reserve at auction — it&apos;s now available buy-it-now.
-              </div>
+              <div className="text-xs text-[#999]">Available buy-it-now.</div>
               {listing.asking_price != null && (
                 <div className="mt-2 text-[24px] font-semibold tabular-nums text-white">
                   ${listing.asking_price.toLocaleString()}
@@ -225,11 +235,21 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
   );
 }
 
-function StatusBadge({ isSold, isLive, urgent }: { isSold: boolean; isLive: boolean; urgent: boolean }) {
+function StatusBadge({
+  isSold,
+  isBuyNow,
+  isLive,
+  urgent,
+}: {
+  isSold: boolean;
+  isBuyNow: boolean;
+  isLive: boolean;
+  urgent: boolean;
+}) {
   if (isSold) {
     return (
       <span className="absolute right-3 top-3 rounded-md border border-[#2a2a2a] bg-[#141414] px-[7px] py-[3px] text-[9px] font-bold uppercase tracking-wider text-[#999]">
-        Auction closed
+        {isBuyNow ? "Sold" : "Auction closed"}
       </span>
     );
   }
