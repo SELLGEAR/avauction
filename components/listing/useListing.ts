@@ -78,6 +78,23 @@ export function useListing(id: string, urgent: boolean): UseListingResult {
     void fetchListing(false);
   }, [fetchListing]);
 
+  // Refetch on sign-in/sign-out so the viewer block (high-bidder pill,
+  // watch state) appears or disappears immediately instead of waiting out
+  // a poll interval — and polling never runs on closed lots, so without
+  // this the viewer block would never update there at all.
+  useEffect(() => {
+    let supabase;
+    try {
+      supabase = createBrowserClient();
+    } catch {
+      return; // no client → no session changes to react to
+    }
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN" || event === "SIGNED_OUT") void fetchListing(true);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, [fetchListing]);
+
   const isLiveAuction = listing?.status === "active" && listing.listing_type === "auction";
 
   useEffect(() => {
@@ -117,9 +134,15 @@ export function useListing(id: string, urgent: boolean): UseListingResult {
             ? newCurrent + newIncrement
             : prev.minimum_next_bid,
         bid_increment: newIncrement,
+        // A first bid right after sign-in can land before any
+        // token-carrying poll, so viewer may still be null here — promote
+        // it from the bid result. is_watched: false is a safe default the
+        // next poll corrects.
         viewer: prev.viewer
           ? { ...prev.viewer, is_high_bidder: result.is_high_bidder ?? prev.viewer.is_high_bidder }
-          : prev.viewer,
+          : result.is_high_bidder != null
+            ? { is_high_bidder: result.is_high_bidder, is_watched: false }
+            : prev.viewer,
       };
     });
   }, []);

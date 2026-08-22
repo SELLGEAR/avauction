@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { createBrowserClient } from "@/lib/supabase/client";
 import type { ListingDetail, PlaceBidError, PlaceBidResult } from "@/lib/auction/types";
@@ -22,10 +23,9 @@ const ERROR_COPY: Record<PlaceBidError, string> = {
 };
 
 // The proxy max-bid panel — live state only; the page never renders this
-// once a lot is sold. There is no sign-in UI in the app yet (see CLAUDE.md
-// Open Loose Ends), so with no session everything renders disabled behind
-// a "Sign in to bid" placeholder; the panel picks the session up via
-// onAuthStateChange the moment auth ships, with no changes needed here.
+// once a lot is sold. With no session everything renders disabled behind
+// a "Sign in to bid" state linking to /auth; the panel picks the session
+// up via onAuthStateChange the moment sign-in completes.
 export function BidPanel({ listing, onBidResult }: BidPanelProps) {
   const [token, setToken] = useState<string | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -161,8 +161,13 @@ export function BidPanel({ listing, onBidResult }: BidPanelProps) {
 
       {authChecked && !signedIn && (
         <div className="mt-3 text-xs text-[#888]">
-          {/* Placeholder — no sign-in UI exists yet; auth is the next slice */}
-          Sign-in is coming soon. Bidding requires an account.
+          <Link
+            href={`/auth?next=${encodeURIComponent(`/listing/${listing.id}`)}`}
+            className="text-[#4a7aaa] hover:underline"
+          >
+            Sign in or create an account
+          </Link>{" "}
+          to bid.
         </div>
       )}
 

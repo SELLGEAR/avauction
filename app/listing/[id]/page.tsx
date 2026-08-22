@@ -2,6 +2,7 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
+import { AuthStatus } from "@/components/auth/AuthStatus";
 import { GradeBadge } from "@/components/auction/GradeBadge";
 import { LotCloseCountdown } from "@/components/countdown/LotCloseCountdown";
 import { BidPanel } from "@/components/listing/BidPanel";
@@ -79,9 +80,12 @@ export default function ListingDetailPage({ params }: { params: Promise<{ id: st
 
   return (
     <main className="mx-auto max-w-[920px] rounded-2xl bg-[#0a0a0a] p-[22px]">
-      <Link href="/auction" className="mb-4 inline-block text-xs text-[#666] hover:text-[#999]">
-        ← This week&apos;s auction
-      </Link>
+      <div className="mb-4 flex items-center justify-between">
+        <Link href="/auction" className="text-xs text-[#666] hover:text-[#999]">
+          ← This week&apos;s auction
+        </Link>
+        <AuthStatus />
+      </div>
 
       <div className="grid gap-6 md:grid-cols-[1.1fr_1fr]">
         {/* Photos */}
