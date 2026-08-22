@@ -180,8 +180,20 @@ async function main() {
 
     // ---- Hard-rule rejections ------------------------------------------
     console.log('\nHard-rule rejections');
-    const r2 = await submit(payload({ photos: FULL_PHOTOS.slice(0, 7) }));
-    check('7 photos rejected', r2.ok === false && r2.error === 'min_8_photos_required', r2);
+    // Photo minimum is a tunable since 0031 (0 while photo upload is
+    // deferred, 8 at launch) — test against the live setting
+    const { data: minRow } = await db
+      .from('pricing_engine_settings')
+      .select('value')
+      .eq('key', 'min_photos_per_listing')
+      .single();
+    const minPhotos = Number(minRow?.value ?? 8);
+    if (minPhotos > 0) {
+      const r2 = await submit(payload({ photos: FULL_PHOTOS.slice(0, minPhotos - 1) }));
+      check(`${minPhotos - 1} photos rejected`, r2.ok === false && r2.error === 'min_photos_required', r2);
+    } else {
+      console.log('  (skip) min_photos_per_listing is 0 — photo-count rejection inactive while photos are deferred');
+    }
     const r3 = await submit(payload({ known_issues: '   ' }));
     check('blank known_issues rejected', r3.ok === false && r3.error === 'known_issues_required', r3);
     const r4 = await submit(payload({ listing_type: 'flash_listing' }));

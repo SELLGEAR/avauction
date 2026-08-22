@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AuthStatus } from "@/components/auth/AuthStatus";
 import { CountdownCells } from "@/components/countdown/CountdownCells";
@@ -60,7 +61,15 @@ export default function AuctionBrowsePage() {
           </div>
         </div>
         <div className="flex flex-col items-end gap-3">
-          <AuthStatus />
+          <div className="flex items-center gap-2">
+            <Link
+              href="/sell"
+              className="inline-block rounded-lg border border-[#2a2a2a] px-3 py-1.5 text-xs font-medium text-[#999] transition-colors hover:border-[#3a3a3a] hover:text-white"
+            >
+              Sell gear
+            </Link>
+            <AuthStatus />
+          </div>
           {!loading && !error && total === 0 && (
             <CountdownCells target={nextDropAt} caption="Next drop in" size="compact" />
           )}

@@ -6,9 +6,9 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 // POST /api/auth/upgrade-to-seller — the seller onboarding trigger.
 // Atomically creates the sellers row (provisional, platform-assigned
 // anonymous username) and flips the user's role to seller.
-// Body: { account_type: 'individual' | 'business', business_name?, ein?,
-//         business_type?, website?, phone?, years_in_business?,
-//         display_location? }
+// Body: { account_type: 'individual' | 'business', agreement_accepted: true,
+//         business_name?, ein?, business_type?, website?, phone?,
+//         years_in_business?, display_location? }
 export async function POST(req: Request) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -35,12 +35,18 @@ export async function POST(req: Request) {
   ) {
     return NextResponse.json({ error: "business_name_and_ein_required" }, { status: 400 });
   }
+  // The seller agreement checkbox is a required onboarding step, and
+  // create_seller() rejects without it — fail fast with the same code
+  if (body.agreement_accepted !== true) {
+    return NextResponse.json({ error: "agreement_required" }, { status: 400 });
+  }
 
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase.rpc("create_seller", {
     p_user_id: user.id,
     p: {
       account_type: accountType,
+      agreement_accepted: true,
       business_name: body.business_name ?? null,
       ein: body.ein ?? null,
       business_type: body.business_type ?? null,
