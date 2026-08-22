@@ -8,6 +8,9 @@ const PER_PAGE = 24;
 interface UseAuctionLotsArgs {
   sort: AuctionSort;
   zip?: string;
+  /** Bump to force a fresh page-1 fetch even when sort/zip are unchanged
+   *  — e.g. resubmitting the same zip to retry a failed nearest search. */
+  refresh?: number;
 }
 
 interface UseAuctionLotsResult {
@@ -25,7 +28,7 @@ interface UseAuctionLotsResult {
 // change; loadMore appends. sort=nearest is skipped (falls back to the
 // default) until a zip is supplied, since search_listings() errors
 // without one.
-export function useAuctionLots({ sort, zip }: UseAuctionLotsArgs): UseAuctionLotsResult {
+export function useAuctionLots({ sort, zip, refresh = 0 }: UseAuctionLotsArgs): UseAuctionLotsResult {
   const [lots, setLots] = useState<SearchListingResult[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -72,7 +75,10 @@ export function useAuctionLots({ sort, zip }: UseAuctionLotsArgs): UseAuctionLot
         }
       }
     },
-    [effectiveSort, zip]
+    // refresh isn't read inside — it's a dep so a bump recreates this
+    // callback and refires the page-1 effect below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [effectiveSort, zip, refresh]
   );
 
   useEffect(() => {

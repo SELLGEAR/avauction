@@ -19,18 +19,21 @@ interface SortChipsProps {
 
 // "Closest to me" needs a buyer zip that search_listings() requires for
 // sort=nearest; there's no stored profile zip in the schema (see
-// 0006_create_users_sellers.sql — users has no zip field), so this is a
-// one-time inline prompt, remembered client-side by the parent page.
+// 0006_create_users_sellers.sql — users has no zip field), so this is an
+// inline prompt, remembered client-side by the parent page. Clicking the
+// chip while nearest is already active reopens the prompt — that's the
+// only path to change a stored zip or retry after a failed nearest search.
 export function SortChips({ sort, hasZip, onSelect, onSubmitZip }: SortChipsProps) {
   const [promptOpen, setPromptOpen] = useState(false);
   const [zipInput, setZipInput] = useState("");
   const [zipError, setZipError] = useState(false);
 
   function handleClick(value: AuctionSort) {
-    if (value === "nearest" && !hasZip) {
+    if (value === "nearest" && (!hasZip || sort === "nearest")) {
       setPromptOpen(true);
       return;
     }
+    setPromptOpen(false);
     onSelect(value);
   }
 

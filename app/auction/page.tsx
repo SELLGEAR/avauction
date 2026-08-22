@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { AuthStatus } from "@/components/auth/AuthStatus";
 import { CountdownCells } from "@/components/countdown/CountdownCells";
 import { LotCard } from "@/components/auction/LotCard";
 import { SortChips } from "@/components/auction/SortChips";
@@ -21,6 +22,10 @@ export default function AuctionBrowsePage() {
   const nextDropAt = useMemo(() => nextAuctionDropET(), []);
   const [sort, setSort] = useState<AuctionSort>("ending_soonest");
   const [zip, setZip] = useState<string | undefined>(undefined);
+  // Bumped on every zip submission so the search refires even when the
+  // zip and sort values are unchanged (retrying a failed nearest search
+  // would otherwise be a state no-op and leave the error stuck).
+  const [zipVersion, setZipVersion] = useState(0);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(ZIP_STORAGE_KEY);
@@ -31,11 +36,13 @@ export default function AuctionBrowsePage() {
     window.localStorage.setItem(ZIP_STORAGE_KEY, newZip);
     setZip(newZip);
     setSort("nearest");
+    setZipVersion((v) => v + 1);
   }
 
   const { lots, total, loading, loadingMore, error, hasMore, loadMore } = useAuctionLots({
     sort,
     zip,
+    refresh: zipVersion,
   });
 
   return (
@@ -52,9 +59,12 @@ export default function AuctionBrowsePage() {
             Pro audio, lighting &amp; video · bidding open all week · closes begin Friday at noon ET
           </div>
         </div>
-        {!loading && !error && total === 0 && (
-          <CountdownCells target={nextDropAt} caption="Next drop in" size="compact" />
-        )}
+        <div className="flex flex-col items-end gap-3">
+          <AuthStatus />
+          {!loading && !error && total === 0 && (
+            <CountdownCells target={nextDropAt} caption="Next drop in" size="compact" />
+          )}
+        </div>
       </div>
 
       <div className="mb-[18px]">
@@ -63,7 +73,9 @@ export default function AuctionBrowsePage() {
 
       {error && (
         <div className="rounded-lg border border-[#6a1515] bg-[#2a0a0a] px-4 py-3 text-sm text-[#ff8080]">
-          Couldn&apos;t load this week&apos;s lots. Try refreshing.
+          {error === "buyer_zip_required_for_nearest"
+            ? "We don't recognize that zip code — click “Closest to me” to try another."
+            : "Couldn't load this week's lots. Try refreshing."}
         </div>
       )}
 
