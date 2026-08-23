@@ -27,18 +27,30 @@ const AGREEMENT_PLACEHOLDER = [
 
 interface Props {
   token: string;
+  // Login email, prefilled as the contact email (editable — a rental
+  // house's ops contact often isn't the login account)
+  defaultEmail?: string;
   onUpgraded: (anonymousUsername: string | null) => void;
 }
 
-export function OnboardingForm({ token, onUpgraded }: Props) {
+export function OnboardingForm({ token, defaultEmail, onUpgraded }: Props) {
   const [accountType, setAccountType] = useState<"individual" | "business">("business");
   const [businessName, setBusinessName] = useState("");
   const [ein, setEin] = useState("");
   const [businessType, setBusinessType] = useState<string>("rental_house");
   const [website, setWebsite] = useState("");
-  const [phone, setPhone] = useState("");
   const [yearsInBusiness, setYearsInBusiness] = useState("");
   const [displayLocation, setDisplayLocation] = useState("");
+  // Contact identity — required for all sellers (0032), never buyer-visible
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState(defaultEmail ?? "");
+  const [phone, setPhone] = useState("");
+  const [addressLine1, setAddressLine1] = useState("");
+  const [addressLine2, setAddressLine2] = useState("");
+  const [city, setCity] = useState("");
+  const [stateRegion, setStateRegion] = useState("");
+  const [postalCode, setPostalCode] = useState("");
+  const [country, setCountry] = useState("US");
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +70,12 @@ export function OnboardingForm({ token, onUpgraded }: Props) {
       setError("Business name and EIN are required for a business account.");
       return;
     }
+    const contactComplete = [contactName, contactEmail, phone, addressLine1, city, stateRegion, postalCode]
+      .every((v) => v.trim() !== "");
+    if (!contactComplete) {
+      setError("Contact name, email, phone, and address are required.");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -68,11 +86,19 @@ export function OnboardingForm({ token, onUpgraded }: Props) {
         body: JSON.stringify({
           account_type: accountType,
           agreement_accepted: true,
+          contact_name: contactName.trim(),
+          contact_email: contactEmail.trim(),
+          phone: phone.trim(),
+          address_line1: addressLine1.trim(),
+          address_line2: addressLine2.trim() !== "" ? addressLine2.trim() : null,
+          city: city.trim(),
+          state: stateRegion.trim(),
+          postal_code: postalCode.trim(),
+          country: country.trim() !== "" ? country.trim() : "US",
           business_name: isBusiness ? businessName.trim() : null,
           ein: isBusiness ? ein.trim() : null,
           business_type: isBusiness ? businessType : null,
           website: isBusiness && website.trim() !== "" ? website.trim() : null,
-          phone: phone.trim() !== "" ? phone.trim() : null,
           years_in_business: isBusiness && Number.isInteger(years) && years >= 0 ? years : null,
           display_location: displayLocation.trim() !== "" ? displayLocation.trim() : null,
         }),
@@ -92,9 +118,11 @@ export function OnboardingForm({ token, onUpgraded }: Props) {
         setError(
           result.error === "business_name_and_ein_required"
             ? "Business name and EIN are required for a business account."
-            : result.error === "rate_limited"
-              ? "Too many attempts — give it a moment and try again."
-              : "Something went wrong setting up your seller account. Try again."
+            : result.error === "contact_details_required"
+              ? "Contact name, email, phone, and address are required."
+              : result.error === "rate_limited"
+                ? "Too many attempts — give it a moment and try again."
+                : "Something went wrong setting up your seller account. Try again."
         );
         return;
       }
@@ -148,6 +176,7 @@ export function OnboardingForm({ token, onUpgraded }: Props) {
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
               required
+              autoComplete="organization"
               className={inputClass}
             />
           </label>
@@ -177,6 +206,7 @@ export function OnboardingForm({ token, onUpgraded }: Props) {
               value={website}
               onChange={(e) => setWebsite(e.target.value)}
               placeholder="https://"
+              autoComplete="url"
               className={inputClass}
             />
           </label>
@@ -192,10 +222,110 @@ export function OnboardingForm({ token, onUpgraded }: Props) {
         </>
       )}
 
-      <label className={labelClass}>
-        Phone <span className="text-[#555]">(optional)</span>
-        <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" className={inputClass} />
-      </label>
+      {/* Contact identity — required for all sellers. autocomplete attrs
+          let the browser fill the whole block in one tap. */}
+      <div className="mb-3 mt-4 border-t border-[#222] pt-4">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-white">
+          Contact details
+        </h2>
+        <p className="mb-3 mt-1 text-[11px] leading-relaxed text-[#666]">
+          Required for a verified marketplace — buyers and sellers moving serious gear through
+          escrow expect it. Never shown to buyers until a sale is funded.
+        </p>
+
+        <label className={labelClass}>
+          Full name <span className="text-[#ff4444]">*</span>
+          <input
+            value={contactName}
+            onChange={(e) => setContactName(e.target.value)}
+            required
+            autoComplete="name"
+            className={inputClass}
+          />
+        </label>
+        <label className={labelClass}>
+          Contact email <span className="text-[#ff4444]">*</span>
+          <input
+            value={contactEmail}
+            onChange={(e) => setContactEmail(e.target.value)}
+            required
+            type="email"
+            autoComplete="email"
+            className={inputClass}
+          />
+        </label>
+        <label className={labelClass}>
+          Phone <span className="text-[#ff4444]">*</span>
+          <input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+            type="tel"
+            autoComplete="tel"
+            className={inputClass}
+          />
+        </label>
+        <label className={labelClass}>
+          Street address <span className="text-[#ff4444]">*</span>
+          <input
+            value={addressLine1}
+            onChange={(e) => setAddressLine1(e.target.value)}
+            required
+            autoComplete="address-line1"
+            className={inputClass}
+          />
+        </label>
+        <label className={labelClass}>
+          Suite / unit <span className="text-[#555]">(optional)</span>
+          <input
+            value={addressLine2}
+            onChange={(e) => setAddressLine2(e.target.value)}
+            autoComplete="address-line2"
+            className={inputClass}
+          />
+        </label>
+        <div className="grid grid-cols-[2fr_1fr_1fr] gap-2">
+          <label className={labelClass}>
+            City <span className="text-[#ff4444]">*</span>
+            <input
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              required
+              autoComplete="address-level2"
+              className={inputClass}
+            />
+          </label>
+          <label className={labelClass}>
+            State <span className="text-[#ff4444]">*</span>
+            <input
+              value={stateRegion}
+              onChange={(e) => setStateRegion(e.target.value)}
+              required
+              autoComplete="address-level1"
+              className={inputClass}
+            />
+          </label>
+          <label className={labelClass}>
+            ZIP <span className="text-[#ff4444]">*</span>
+            <input
+              value={postalCode}
+              onChange={(e) => setPostalCode(e.target.value)}
+              required
+              autoComplete="postal-code"
+              className={inputClass}
+            />
+          </label>
+        </div>
+        <label className={labelClass}>
+          Country
+          <input
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+            autoComplete="country"
+            className={inputClass}
+          />
+        </label>
+      </div>
 
       <label className={labelClass}>
         General location shown to buyers <span className="text-[#555]">(optional)</span>

@@ -94,6 +94,7 @@ export default function SellPage() {
         </p>
         <OnboardingForm
           token={token}
+          defaultEmail={me.user.email}
           onUpgraded={(username) => {
             if (username) {
               setJustUpgraded({ username });
