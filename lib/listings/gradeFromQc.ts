@@ -1,17 +1,47 @@
-// Suggested condition grade from the QC checklist answers, per the
-// grading system: the platform calculates, the seller confirms or adjusts
+// Suggested condition grade from the QC checklist answers, per the decided
+// grading system (final, July 28, 2026): A Excellent / B Very Good /
+// C Good / D Fair, plus Poor / For Parts as a separate state OUTSIDE the
+// A–D scale. The platform calculates, the seller confirms or adjusts
 // (adjustments set grade_override, flagged for admin review).
 //
-//   D — Parts/Repair: does not power on / produce full output
-//   C — Functional with Disclosures: works but known issues disclosed,
-//       or significant cosmetic damage
-//   B — Rental Ready: fully operational; minor cosmetic wear, missing
-//       non-essential pieces, or no flight case
-//   A — Tour Ready: powers on, all components, flight case, clean, no
-//       known issues
+//   Poor — not fully operational (doesn't power on / produce full output).
+//          NOT a priced grade: no gauge, never feeds the median. Submission
+//          is blocked (form + server guard) until for-parts listings ship —
+//          a broken unit stored as D would poison D-grade comps in the
+//          pricing engine.
+//   D — Fair: functional but with disclosed known issues
+//   C — Good: works properly, significant cosmetic wear, essentials intact
+//   B — Very Good: minor cosmetic marks or missing non-essential pieces,
+//       no effect on performance
+//   A — Excellent: powers on, complete, clean, no known issues
+//
+// Flight case is deliberately NOT a grade input — it's a value add-on
+// recorded separately (listings.flight_case_included), not unit condition.
 
 export type Grade = "A" | "B" | "C" | "D";
+export type SuggestedGrade = Grade | "poor";
 export type CosmeticDamage = "none" | "minor" | "significant";
+
+export const GRADE_NAMES: Record<Grade, string> = {
+  A: "Excellent",
+  B: "Very Good",
+  C: "Good",
+  D: "Fair",
+};
+
+export const POOR_NAME = "Poor / For Parts";
+
+// Buyer-facing definitions — decided market-standard language, do not
+// reword into invented terms (see CLAUDE.md, Grading System).
+export const GRADE_DEFINITIONS: Record<Grade, string> = {
+  A: "Looks and performs like new. Tested to full manufacturer spec, only minor signs of use. Ready for high-profile touring and broadcast.",
+  B: "Fully functional, minor cosmetic marks such as light scuffs or rack rash. No effect on performance.",
+  C: "Works properly with visible cosmetic wear from regular professional use. Everything essential is intact.",
+  D: "Functional but with noticeable wear or minor known issues, disclosed in the listing. Priced accordingly.",
+};
+
+export const POOR_DEFINITION =
+  "Not fully operational, or sold for parts, repair, or salvage. Sold strictly as-is, no returns. Inspect before bidding.";
 
 export interface QcAnswers {
   powers_on: boolean;
@@ -25,10 +55,10 @@ export interface QcAnswers {
   serial_confirmed?: boolean;
 }
 
-export function gradeFromQc(qc: QcAnswers): Grade {
-  if (!qc.powers_on) return "D";
-  if (qc.known_issues) return "C";
+export function gradeFromQc(qc: QcAnswers): SuggestedGrade {
+  if (!qc.powers_on) return "poor";
+  if (qc.known_issues) return "D";
   if (qc.cosmetic_damage === "significant") return "C";
-  if (qc.cosmetic_damage === "minor" || !qc.all_components || !qc.flight_case) return "B";
+  if (qc.cosmetic_damage === "minor" || !qc.all_components) return "B";
   return "A";
 }

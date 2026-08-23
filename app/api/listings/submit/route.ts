@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth";
 import { rateLimit } from "@/lib/rateLimit";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { gradeFromQc, type Grade, type QcAnswers } from "@/lib/listings/gradeFromQc";
+import { gradeFromQc, POOR_NAME, type Grade, type QcAnswers } from "@/lib/listings/gradeFromQc";
 import { qualityScore, type PhotoInput } from "@/lib/listings/qualityScore";
 
 // POST /api/listings/submit — seller submits gear for admin review.
@@ -70,6 +70,39 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    // Seller submissions are never silently discarded — the "can't find
+    // it?" rule says unmatched products go to admin review. Queues directly
+    // (dedup via the (source, normalized_title) unique index) and returns
+    // the 422 the form renders as its "sent for review" panel.
+    const queueForReview = async () => {
+      const { data: pending, error: queueErr } = await supabase
+        .from("pending_master_equipment")
+        .upsert(
+          {
+            source: "seller_submission",
+            raw_title: `${mfr} ${model}`,
+            manufacturer_guess: mfr,
+            model_guess: model,
+          },
+          { onConflict: "source,normalized_title", ignoreDuplicates: true }
+        )
+        .select("id")
+        .maybeSingle();
+      if (queueErr) {
+        console.error("pending_master_equipment queue failed:", queueErr.message);
+        return NextResponse.json({ error: "match_failed" }, { status: 500 });
+      }
+      return NextResponse.json(
+        {
+          status: "pending_equipment_review",
+          pending_id: pending?.id ?? null,
+          message:
+            "This product isn't in our database yet — it's been sent for review. You'll be able to submit the listing once it's approved.",
+        },
+        { status: 422 }
+      );
+    };
+
     const { data: match, error: matchErr } = await supabase.rpc("match_or_queue", {
       p_source: "seller_submission",
       p_raw_title: `${mfr} ${model}`,
@@ -78,8 +111,10 @@ export async function POST(req: Request) {
       p_listing_url: null,
     });
     if (matchErr) {
+      // Degrade to admin review rather than 500 — worst case a product
+      // that would have auto-matched gets linked by hand in the queue.
       console.error("match_or_queue failed:", matchErr.message);
-      return NextResponse.json({ error: "match_failed" }, { status: 500 });
+      return queueForReview();
     }
     const m = match as { decision: string; master_equipment_id?: string; pending_id?: string };
     if (m.decision === "matched" && m.master_equipment_id) {
@@ -95,12 +130,26 @@ export async function POST(req: Request) {
         { status: 422 }
       );
     } else {
-      return NextResponse.json({ error: "unknown_product" }, { status: 422 });
+      // decision === 'rejected': match_or_queue's junk rule exists for
+      // scrapers, not sellers.
+      return queueForReview();
     }
   }
 
   // ---- Grade + pricing + quality score ---------------------------------
   const suggestedGrade = gradeFromQc(qc);
+  if (suggestedGrade === "poor") {
+    // Poor / For Parts is outside the A–D pricing scale — storing it as a
+    // priced grade would poison pricing-engine comps. Blocked here as well
+    // as in the form; for-parts listings are a future slice.
+    return NextResponse.json(
+      {
+        error: "poor_for_parts_not_supported",
+        message: `Gear that doesn't power on is graded ${POOR_NAME}, which can't be listed yet. For-parts listings are coming — for now only functional gear can be submitted.`,
+      },
+      { status: 422 }
+    );
+  }
   const sellerGrade =
     typeof body.condition_grade === "string" && ["A", "B", "C", "D"].includes(body.condition_grade)
       ? (body.condition_grade as Grade)

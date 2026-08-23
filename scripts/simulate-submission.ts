@@ -53,12 +53,15 @@ async function main() {
   try {
     // ---- Pure TS: grade rules ------------------------------------------
     console.log('Grade rules (QC -> suggested grade)');
-    check('powers_on=false -> D', gradeFromQc({ ...cleanQc, powers_on: false }) === 'D');
-    check('known_issues -> C', gradeFromQc({ ...cleanQc, known_issues: true }) === 'C');
+    // Decided grading system (A Excellent / B Very Good / C Good / D Fair,
+    // Poor outside the scale): doesn't power on is Poor, not a priced grade;
+    // disclosed known issues are D (Fair); flight case no longer grades.
+    check('powers_on=false -> poor', gradeFromQc({ ...cleanQc, powers_on: false }) === 'poor');
+    check('known_issues -> D', gradeFromQc({ ...cleanQc, known_issues: true }) === 'D');
     check('significant cosmetic -> C', gradeFromQc({ ...cleanQc, cosmetic_damage: 'significant' }) === 'C');
     check('minor cosmetic -> B', gradeFromQc({ ...cleanQc, cosmetic_damage: 'minor' }) === 'B');
     check('missing components -> B', gradeFromQc({ ...cleanQc, all_components: false }) === 'B');
-    check('no flight case -> B', gradeFromQc({ ...cleanQc, flight_case: false }) === 'B');
+    check('no flight case does NOT grade down -> A', gradeFromQc({ ...cleanQc, flight_case: false }) === 'A');
     check('clean sweep -> A', gradeFromQc(cleanQc) === 'A');
 
     // ---- Pure TS: quality score ----------------------------------------

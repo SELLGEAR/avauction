@@ -2,25 +2,17 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useMe } from "@/components/auth/useMe";
-import {
-  EquipmentTypeahead,
-  type EquipmentSelection,
-} from "@/components/seller/EquipmentTypeahead";
+import { GearEntryForm } from "@/components/seller/GearEntryForm";
 
 // /sell/new — the gear entry form. Sellers only:
 //   signed out -> /auth?next=/sell/new
 //   not seller -> /sell (onboarding)
-//
-// Checkpoint 1 state: step 1 (equipment selection) only. The QC checklist,
-// grade, details, pricing, and attestation steps land in the next slice —
-// this page becomes the host for the full multi-step GearEntryForm.
 
 export default function NewListingPage() {
   const router = useRouter();
   const state = useMe();
-  const [selection, setSelection] = useState<EquipmentSelection | null>(null);
 
   useEffect(() => {
     if (state.status === "signed_out") router.replace("/auth?next=%2Fsell%2Fnew");
@@ -42,16 +34,10 @@ export default function NewListingPage() {
       </Link>
       <h1 className="mb-1 text-xl font-semibold text-white">List gear</h1>
       <p className="mb-6 text-[13px] text-[#666]">
-        Start by finding your gear in the equipment database.
+        One item at a time — find it, grade it, price it, done.
       </p>
 
-      <EquipmentTypeahead token={state.token} selection={selection} onSelect={setSelection} />
-
-      {selection && (
-        <p className="mt-4 text-xs text-[#666]">
-          Condition checklist, details, and pricing — coming in the next step of this build.
-        </p>
-      )}
+      <GearEntryForm token={state.token} />
     </main>
   );
 }

@@ -123,13 +123,16 @@ export default function SellPage() {
       </p>
 
       <div className="grid gap-2">
-        <div className="rounded-xl border border-[#222] bg-[#111] p-4">
+        <Link
+          href="/sell/new"
+          className="rounded-xl border border-[#222] bg-[#111] p-4 transition-colors hover:border-[#3a3a3a]"
+        >
           <h2 className="text-sm font-semibold text-white">List gear</h2>
           <p className="mt-1 text-xs text-[#888]">
-            The gear entry form is on its way — next build slice. Listings go through admin review
-            before going live.
+            Search the equipment database, run the condition checklist, set your price. Listings go
+            through admin review before going live.
           </p>
-        </div>
+        </Link>
 
         <Link
           href="/seller/payouts"
