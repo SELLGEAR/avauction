@@ -1188,6 +1188,14 @@ Short-list from the Aug 16, 2026 auction-timing-model session. Not full spec, ju
 
 21. **PRE-SOFT-LAUNCH: `ops-admin@avauction-demo.local` persists in the live DB.** `scripts/approve-listing.mjs` provisions it (auth user + `users.role = 'admin'`, password rotated each run) and it remains after every run. Clean it up / replace with intentional, documented admin accounts before soft launch — sweep it alongside the other `@avauction-demo.local` demo-seed accounts.
 
+22. **AI FEATURES — FUTURE (post-sprint, October+). Candidate AI additions to consider once the functional site is done, in rough priority (added Sept 17, 2026):**
+    1. **AI-generated listing descriptions** — already planned and stubbed in the gear entry form ("AI-assist coming later"); needs an LLM API wired up. The clearest friction-win: faster listing, more consistent data.
+    2. **AI condition-grading assist from photos** — once photo upload exists, suggest condition observations from the uploaded images to help sellers fill the QC checklist accurately. Serves data quality.
+    3. **Natural-language search** — parse fuzzy buyer queries into the existing structured search/filters.
+    4. **AI pricing insights** — plain-English market context generated from the gauge. Strategically the strongest (monetizes the moat), but GATED on the gauge having real data, so genuinely later.
+    5. **AI catalog-cleanup tool** — internal; could assist the #10 miscategorization audit.
+    **Explicitly NOT worth it early:** a support chatbot — no volume, and a trust risk on a money marketplace. **None of these are sprint work** — the sprint stays email-confirm → photos → checkout (#19).
+
 ---
 
 ## Current State — Updated July 28, 2026
