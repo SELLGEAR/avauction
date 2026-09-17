@@ -359,12 +359,12 @@ export function GearEntryForm({ token }: Props) {
             ` (you adjusted from the suggested ${outcome.suggestedGrade} — this gets a second look in review)`}
         </p>
         <div className="mt-4 grid gap-2">
-          <button type="button" onClick={resetAll} className={primaryBtn}>
+          <Link href="/seller/listings" className={`${primaryBtn} text-center`}>
+            View your listings
+          </Link>
+          <button type="button" onClick={resetAll} className={`${secondaryBtn}`}>
             List another item
           </button>
-          <Link href="/sell" className={`${secondaryBtn} text-center`}>
-            Seller home
-          </Link>
         </div>
       </div>
     );

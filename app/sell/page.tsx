@@ -135,6 +135,16 @@ export default function SellPage() {
         </Link>
 
         <Link
+          href="/seller/listings"
+          className="rounded-xl border border-[#222] bg-[#111] p-4 transition-colors hover:border-[#3a3a3a]"
+        >
+          <h2 className="text-sm font-semibold text-white">Your listings</h2>
+          <p className="mt-1 text-xs text-[#888]">
+            Everything you&apos;ve listed — what&apos;s in review, live, or returned with notes.
+          </p>
+        </Link>
+
+        <Link
           href="/seller/payouts"
           className="rounded-xl border border-[#222] bg-[#111] p-4 transition-colors hover:border-[#3a3a3a]"
         >

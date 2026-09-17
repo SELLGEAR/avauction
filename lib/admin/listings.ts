@@ -60,7 +60,9 @@ export async function reviewListing(
   }
 
   if (action === "approve") {
-    const update: Record<string, unknown> = { status: "active" };
+    // Clear any reason left from a prior rejection cycle — defensive today
+    // (no resubmit path exists), correct the day one does
+    const update: Record<string, unknown> = { status: "active", rejection_reason: null };
     if (listing.listing_type === "auction") {
       // Approval is where an auction lot gets its Friday slot — an active
       // auction with null times is unbiddable by design
@@ -122,7 +124,7 @@ export async function reviewListing(
 
   const { data: updated } = await supabase
     .from("listings")
-    .update({ status: "draft" })
+    .update({ status: "draft", rejection_reason: reason })
     .eq("id", listingId)
     .eq("status", "pending_review")
     .select("id");
