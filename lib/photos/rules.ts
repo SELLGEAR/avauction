@@ -88,13 +88,92 @@ export const WATERMARK_TRANSFORM =
 export const THUMB_TRANSFORM =
   "c_fill,w_400,h_300,q_auto,f_auto/l_text:Arial_18_bold:avauction.com,co_white,o_70,g_south_east,x_10,y_10";
 
-// Insert a transformation into a Cloudinary secure_url
-// (https://res.cloudinary.com/<cloud>/image/upload/v123/id.jpg).
+// Insert a transformation into a PUBLIC (type=upload) Cloudinary URL.
+// Listing photos are type=authenticated and need a server signature, so
+// the uploader gets its preview URLs from POST /api/photos/preview instead;
+// this stays for legacy/public assets only.
 export function withTransformation(secureUrl: string, transform: string): string {
   const marker = "/image/upload/";
   const i = secureUrl.indexOf(marker);
   if (i === -1) return secureUrl;
   return secureUrl.slice(0, i + marker.length) + transform + "/" + secureUrl.slice(i + marker.length);
+}
+
+// ---- Seller-identity blur (anonymity layer) -------------------------------
+//
+// A blur region is a rectangle in NORMALIZED image coordinates (0..1 of
+// the original width/height) so one record serves every derived size.
+// Regions come from Claude vision as suggestions and from the seller's
+// own edits; the final set is stored per photo and applied on DELIVERY as
+// Cloudinary e_blur_region transformations (lib/photos/cloudinary.ts) —
+// the original is never modified.
+export interface BlurRegion {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  // Free text from detection ("asset tag", "rental company stencil") or
+  // "manual" for seller-drawn boxes. Display only.
+  label?: string;
+}
+
+export const MAX_BLUR_REGIONS = 12;
+// Smaller than this and the box is a stray click, not a mark
+export const MIN_BLUR_REGION_SIZE = 0.005;
+
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+const round4 = (v: number) => Math.round(v * 10000) / 10000;
+
+// Validate + clamp a client-supplied region list. Returns null when the
+// input isn't a list of numeric rectangles; drops degenerate boxes.
+export function normalizeBlurRegions(raw: unknown): BlurRegion[] | null {
+  if (raw === undefined || raw === null) return [];
+  if (!Array.isArray(raw)) return null;
+  const out: BlurRegion[] = [];
+  for (const r of raw) {
+    if (!r || typeof r !== "object") return null;
+    const { x, y, w, h, label } = r as Record<string, unknown>;
+    if (![x, y, w, h].every((v) => typeof v === "number" && Number.isFinite(v))) return null;
+    const nx = clamp01(x as number);
+    const ny = clamp01(y as number);
+    const nw = clamp01(Math.min(w as number, 1 - nx));
+    const nh = clamp01(Math.min(h as number, 1 - ny));
+    if (nw < MIN_BLUR_REGION_SIZE || nh < MIN_BLUR_REGION_SIZE) continue;
+    out.push({
+      x: round4(nx), y: round4(ny), w: round4(nw), h: round4(nh),
+      ...(typeof label === "string" && label.trim() !== "" ? { label: label.trim().slice(0, 60) } : {}),
+    });
+  }
+  return out;
+}
+
+// What happened when the photo was scanned for identifying marks. Stored
+// beside the seller's final regions so admin can compare suggested vs
+// accepted. "unavailable" = no API key configured; "failed" = the call
+// errored or timed out; either way the seller continues manually.
+export type DetectionStatus = "done" | "failed" | "unavailable" | "skipped";
+
+export interface DetectionRecord {
+  status: DetectionStatus;
+  suggested: BlurRegion[];
+  model: string | null;
+  note: string | null;
+}
+
+export const DETECTION_STATUSES: readonly DetectionStatus[] = ["done", "failed", "unavailable", "skipped"];
+
+export function normalizeDetection(raw: unknown): DetectionRecord {
+  const fallback: DetectionRecord = { status: "skipped", suggested: [], model: null, note: null };
+  if (!raw || typeof raw !== "object") return fallback;
+  const r = raw as Record<string, unknown>;
+  const status = DETECTION_STATUSES.includes(r.status as DetectionStatus) ? (r.status as DetectionStatus) : "skipped";
+  const suggested = normalizeBlurRegions(r.suggested) ?? [];
+  return {
+    status,
+    suggested: suggested.slice(0, MAX_BLUR_REGIONS),
+    model: typeof r.model === "string" ? r.model.slice(0, 60) : null,
+    note: typeof r.note === "string" ? r.note.slice(0, 200) : null,
+  };
 }
 
 // What the client hands back per photo after a successful upload — the
@@ -110,6 +189,8 @@ export interface UploadedPhoto {
   bytes: number;
   photo_type: PhotoType;
   position: number;
+  blur_regions?: BlurRegion[];
+  detection?: DetectionRecord;
 }
 
 export function missingRequiredTypes(photos: { photo_type: string }[]): string[] {

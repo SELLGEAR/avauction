@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { BlurEditor } from "@/components/seller/BlurEditor";
 import {
   GUIDED_SHOT_ORDER,
   MAX_PHOTO_BYTES,
@@ -9,10 +10,10 @@ import {
   PHOTO_TYPES,
   REJECTION_MESSAGES,
   REQUIRED_PHOTO_TYPES,
-  THUMB_TRANSFORM,
   missingRequiredTypes,
   validateFile,
-  withTransformation,
+  type BlurRegion,
+  type DetectionRecord,
   type PhotoType,
   type UploadedPhoto,
 } from "@/lib/photos/rules";
@@ -30,8 +31,18 @@ import {
 // Order is the seller's: drag tiles (desktop) or use the arrows (phone).
 // Position 0 is the cover — the browse card and the listing hero both
 // read the first approved photo by position. "Make cover" moves to front.
-// Thumbnails are watermarked delivery URLs, so the seller sees exactly
-// what buyers will see; the original upload is never altered.
+// Thumbnails are signed, watermarked delivery URLs (type=authenticated —
+// nothing is viewable without a server signature), so the seller sees
+// exactly what buyers will see; the original upload is never altered.
+//
+// Anonymity layer: once a photo lands, POST /api/photos/analyze runs a
+// vision scan for seller-identifying marks (company names, logos, asset
+// tags, stencils, spray paint) and returns suggested blur boxes. They
+// appear on the tile immediately; the seller can edit them in the
+// BlurEditor before submitting. The scan is fail-open — if it errors,
+// times out or isn't configured, the tile just shows "scan unavailable"
+// and the seller draws boxes by hand. Regions ride along with the photo
+// at submit and are applied on delivery.
 
 interface SignResponse {
   cloud_name: string;
@@ -40,8 +51,14 @@ interface SignResponse {
   timestamp: number;
   signature: string;
   public_id: string;
+  type: string;
   allowed_formats: string;
   moderation?: string;
+}
+
+interface PreviewResponse {
+  thumb_url: string;
+  editor_url: string;
 }
 
 interface CloudinaryUploadResponse {
@@ -67,7 +84,12 @@ export interface PhotoTile {
   progress: number; // 0–100
   error: string | null;
   photoType: PhotoType;
-  uploaded: Omit<UploadedPhoto, "photo_type" | "position"> | null;
+  // Clean, capped-size signed URL for the blur editor (owner only)
+  editorUrl: string | null;
+  uploaded: Omit<UploadedPhoto, "photo_type" | "position" | "blur_regions" | "detection"> | null;
+  // Anonymity blur: current boxes (seller-edited) + what the scan said
+  blurRegions: BlurRegion[];
+  detection: DetectionRecord | null; // null = scan not finished yet
 }
 
 interface Props {
@@ -97,7 +119,13 @@ const nextKey = () => `p${Date.now().toString(36)}-${keyCounter++}`;
 export function uploadedPhotosFromTiles(tiles: PhotoTile[]): UploadedPhoto[] {
   return tiles
     .filter((t) => t.status === "done" && t.uploaded)
-    .map((t, i) => ({ ...t.uploaded!, photo_type: t.photoType, position: i }));
+    .map((t, i) => ({
+      ...t.uploaded!,
+      photo_type: t.photoType,
+      position: i,
+      blur_regions: t.blurRegions,
+      detection: t.detection ?? { status: "skipped", suggested: [], model: null, note: "scan not finished" },
+    }));
 }
 
 // ok = enough successful uploads, every required shot type present, and
@@ -123,6 +151,11 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
   const [batchNotice, setBatchNotice] = useState<string | null>(null);
   const inFlight = useRef(0);
   const xhrs = useRef(new Map<string, XMLHttpRequest>());
+  const [editing, setEditing] = useState<string | null>(null); // tile key in the BlurEditor
+  const previewTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  // Latest tiles for timers/async callbacks that outlive a render
+  const tilesRef = useRef(tiles);
+  tilesRef.current = tiles;
 
   const patch = useCallback(
     (key: string, p: Partial<PhotoTile>) =>
@@ -163,6 +196,7 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
         form.append("timestamp", String(signBody.timestamp));
         form.append("signature", signBody.signature);
         form.append("public_id", signBody.public_id);
+        form.append("type", signBody.type);
         form.append("allowed_formats", signBody.allowed_formats);
         if (signBody.moderation) form.append("moderation", signBody.moderation);
 
@@ -217,12 +251,32 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
           throw new Error("This image was rejected. Please upload appropriate photos of your gear only.");
         }
 
+        // type=authenticated: the upload response's secure_url is not
+        // viewable without a server signature — ask for signed previews
+        const previewRes = await fetch("/api/photos/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            public_id: result.public_id,
+            version: result.version,
+            format: result.format,
+            width: result.width,
+            height: result.height,
+            blur_regions: [],
+          }),
+        });
+        const preview = (await previewRes.json().catch(() => ({}))) as Partial<PreviewResponse>;
+        if (!previewRes.ok || !preview.thumb_url || !preview.editor_url) {
+          throw new Error("Uploaded, but the preview couldn't be prepared. Retry.");
+        }
+
         if (tile.previewUrl.startsWith("blob:")) URL.revokeObjectURL(tile.previewUrl);
         patch(tile.key, {
           status: "done",
           progress: 100,
           file: null,
-          previewUrl: withTransformation(result.secure_url, THUMB_TRANSFORM),
+          previewUrl: preview.thumb_url,
+          editorUrl: preview.editor_url,
           uploaded: {
             public_id: result.public_id,
             version: result.version,
@@ -233,6 +287,7 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
             bytes: result.bytes,
           },
         });
+        void analyze(tile.key, result, tile.photoType);
       } catch (e) {
         const msg = (e as Error).message;
         if (msg !== "aborted") patch(tile.key, { status: "error", error: msg });
@@ -240,8 +295,83 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
         inFlight.current--;
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [patch, token]
   );
+
+  // Vision scan for seller-identifying marks. Fail-open: any non-200 or
+  // thrown error becomes a "failed" record and the seller carries on.
+  async function analyze(key: string, result: CloudinaryUploadResponse, photoType: PhotoType) {
+    let record: DetectionRecord = { status: "failed", suggested: [], model: null, note: "scan unavailable" };
+    try {
+      const res = await fetch("/api/photos/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          public_id: result.public_id, version: result.version, format: result.format, photo_type: photoType,
+        }),
+      });
+      if (res.ok) {
+        const body = (await res.json()) as Partial<DetectionRecord>;
+        if (body && typeof body.status === "string") {
+          record = {
+            status: body.status,
+            suggested: Array.isArray(body.suggested) ? body.suggested : [],
+            model: body.model ?? null,
+            note: body.note ?? null,
+          };
+        }
+      }
+    } catch {
+      /* fail-open */
+    }
+    onChange((prev) => {
+      const t = prev.find((x) => x.key === key);
+      if (!t) return prev; // removed meanwhile
+      // Suggested boxes become the starting set unless the seller already drew some
+      const regions = t.blurRegions.length === 0 ? record.suggested : t.blurRegions;
+      return prev.map((x) => (x.key === key ? { ...x, detection: record, blurRegions: regions } : x));
+    });
+    if (record.suggested.length > 0) schedulePreview(key);
+  }
+
+  // Refresh a tile's watermarked thumb to reflect its current blur boxes
+  // (debounced — the editor fires on every drag move)
+  function schedulePreview(key: string) {
+    const existing = previewTimers.current.get(key);
+    if (existing) clearTimeout(existing);
+    previewTimers.current.set(
+      key,
+      setTimeout(async () => {
+        previewTimers.current.delete(key);
+        const snapshot = tilesRef.current.find((x) => x.key === key);
+        if (!snapshot?.uploaded) return;
+        try {
+          const res = await fetch("/api/photos/preview", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({
+              public_id: snapshot.uploaded.public_id,
+              version: snapshot.uploaded.version,
+              format: snapshot.uploaded.format,
+              width: snapshot.uploaded.width,
+              height: snapshot.uploaded.height,
+              blur_regions: snapshot.blurRegions,
+            }),
+          });
+          const body = (await res.json().catch(() => ({}))) as Partial<PreviewResponse>;
+          if (res.ok && body.thumb_url) patch(key, { previewUrl: body.thumb_url });
+        } catch {
+          /* keep the old thumb */
+        }
+      }, 400)
+    );
+  }
+
+  function setRegions(key: string, regions: BlurRegion[]) {
+    patch(key, { blurRegions: regions });
+    schedulePreview(key);
+  }
 
   // Pump the queue: at most MAX_CONCURRENT uploads in flight
   useEffect(() => {
@@ -279,7 +409,10 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
             progress: 0,
             error: REJECTION_MESSAGES[why],
             photoType,
+            editorUrl: null,
             uploaded: null,
+            blurRegions: [],
+            detection: null,
           });
           continue;
         }
@@ -292,7 +425,10 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
           progress: 0,
           error: null,
           photoType,
+          editorUrl: null,
           uploaded: null,
+          blurRegions: [],
+          detection: null,
         });
       }
       if (rejected > 0) notices.push(`${rejected} file${rejected === 1 ? "" : "s"} couldn't be added.`);
@@ -458,6 +594,14 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
                 ) : (
                   <div className="flex h-full items-center justify-center text-[#333]">▦</div>
                 )}
+                {tile.status === "done" &&
+                  tile.blurRegions.map((r, j) => (
+                    <div
+                      key={j}
+                      style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%` }}
+                      className="pointer-events-none absolute border border-[#22ee77]/80"
+                    />
+                  ))}
                 {i === 0 && tile.status === "done" && (
                   <span className="absolute left-1.5 top-1.5 rounded bg-[#22ee77] px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#0a0a0a]">
                     Cover
@@ -503,6 +647,27 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
                     </option>
                   ))}
                 </select>
+                {tile.status === "done" && (
+                  <div className="mt-1 flex items-center justify-between gap-1 text-[11px]">
+                    <span className={tile.detection === null ? "text-[#888]" : tile.blurRegions.length > 0 ? "text-[#22ee77]" : tile.detection.status === "done" ? "text-[#888]" : "text-[#c9a227]"}>
+                      {tile.detection === null
+                        ? "Scanning for identifying marks…"
+                        : tile.blurRegions.length > 0
+                          ? `${tile.blurRegions.length} blur box${tile.blurRegions.length === 1 ? "" : "es"}`
+                          : tile.detection.status === "done"
+                            ? "No identifying marks found"
+                            : "Scan unavailable — check the photo yourself"}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={!tile.editorUrl}
+                      onClick={() => setEditing(tile.key)}
+                      className="rounded border border-[#2a2a2a] px-1.5 py-0.5 text-[#999] hover:text-white disabled:opacity-30"
+                    >
+                      Blur
+                    </button>
+                  </div>
+                )}
                 <div className="mt-1 flex items-center justify-between gap-1 text-[11px]">
                   <div className="flex gap-1">
                     <button
@@ -547,6 +712,26 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
           ))}
         </ul>
       )}
+
+      {editing !== null && (() => {
+        const t = tiles.find((x) => x.key === editing);
+        if (!t || !t.editorUrl) return null;
+        return (
+          <BlurEditor
+            imageUrl={t.editorUrl}
+            regions={t.blurRegions}
+            suggested={t.detection?.suggested ?? []}
+            detectionNote={
+              t.detection && t.detection.status !== "done"
+                ? "The automatic scan didn't run for this photo — look it over yourself."
+                : null
+            }
+            isSerialShot={t.photoType === "serial_label"}
+            onChange={(regions) => setRegions(t.key, regions)}
+            onClose={() => setEditing(null)}
+          />
+        );
+      })()}
 
       {!rules.ok && tiles.length > 0 && (
         <p className="mt-3 text-xs text-[#888]">

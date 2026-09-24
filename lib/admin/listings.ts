@@ -6,6 +6,68 @@ import { createServiceRoleClient } from "../supabase/server";
 import { logAdminAction } from "../adminAudit";
 import { alertsForListing } from "../notifications/savedSearch";
 import { sendListingApproved, sendListingRejected } from "../notifications/listingReview";
+import { getCloudinaryConfig, originalUrl } from "../photos/cloudinary";
+import {
+  normalizeBlurRegions,
+  normalizeDetection,
+  type BlurRegion,
+  type DetectionRecord,
+} from "../photos/rules";
+
+export interface ReviewPhoto {
+  id: string;
+  position: number;
+  photo_type: string;
+  moderation_status: string;
+  width: number | null;
+  height: number | null;
+  // Clean original — signed, ADMIN ONLY. Null for legacy local demo rows.
+  original_url: string | null;
+  // What buyers see: blur regions + watermark (listing_photos.url)
+  buyer_url: string;
+  blur_regions: BlurRegion[];
+  detection: DetectionRecord;
+}
+
+// Side-by-side review data for one listing's photos. Admin routes only:
+// this is the one code path that signs clean-original URLs for a human.
+export async function getListingPhotosForReview(listingId: string): Promise<{
+  listing: { id: string; title: string; status: string };
+  photos: ReviewPhoto[];
+} | null> {
+  const supabase = createServiceRoleClient();
+  const { data: listing } = await supabase
+    .from("listings")
+    .select("id, title, status")
+    .eq("id", listingId)
+    .maybeSingle();
+  if (!listing) return null;
+
+  const { data: rows, error } = await supabase
+    .from("listing_photos")
+    .select("id, url, photo_type, position, moderation_status, public_id, cloudinary_version, format, width, height, blur_regions, detection")
+    .eq("listing_id", listingId)
+    .order("position", { ascending: true });
+  if (error) throw new Error(`listing photos query failed: ${error.message}`);
+
+  const cfg = getCloudinaryConfig();
+  const photos: ReviewPhoto[] = (rows ?? []).map((r) => ({
+    id: r.id,
+    position: r.position,
+    photo_type: r.photo_type,
+    moderation_status: r.moderation_status,
+    width: r.width ?? null,
+    height: r.height ?? null,
+    original_url:
+      cfg && r.public_id && r.cloudinary_version && r.format
+        ? originalUrl(cfg, { public_id: r.public_id, version: Number(r.cloudinary_version), format: r.format })
+        : null,
+    buyer_url: r.url,
+    blur_regions: normalizeBlurRegions(r.blur_regions) ?? [],
+    detection: normalizeDetection(r.detection),
+  }));
+  return { listing, photos };
+}
 
 export async function getListingQueue(opts: {
   status?: string;

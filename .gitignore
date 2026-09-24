@@ -16,3 +16,6 @@ state/
 # Scraper data dumps (local working data, not source)
 avgear-*.json
 reverb-*.json
+
+# Editor backups of the secrets file (.env.local.save etc.)
+.env.local.*
