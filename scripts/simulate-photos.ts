@@ -61,15 +61,18 @@ import {
   REQUIRED_PHOTO_TYPES,
   THUMB_TRANSFORM,
   WATERMARK_TRANSFORM,
+  BLUR_ATTESTATION_TEXT,
   missingRequiredTypes,
   normalizeBlurRegions,
   normalizeDetection,
+  photoStepGate,
   validateFile,
   type BlurRegion,
   type UploadedPhoto,
 } from '../lib/photos/rules';
 import { DEFAULT_DETECTION_MODEL, detectIdentifyingMarks, getDetectionModel, parseDetectionOutput } from '../lib/photos/detect';
 import { getListingPhotosForReview, reviewListing } from '../lib/admin/listings';
+import { POST as submitPost } from '../app/api/listings/submit/route';
 
 const url = process.env.SUPABASE_URL!;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -104,9 +107,9 @@ const SHOT_TYPES = [
 
 // Builds what the browser hands back after 8 successful Cloudinary
 // uploads for `sellerId`, with valid response signatures under `secret`
-function fakeUploads(sellerId: string, secret: string, n = 8): UploadedPhoto[] {
+function fakeUploads(sellerId: string, secret: string, n = 8, offset = 0): UploadedPhoto[] {
   return Array.from({ length: n }, (_, i) => {
-    const public_id = `${publicIdPrefix(sellerId)}${uuidAt(i)}`;
+    const public_id = `${publicIdPrefix(sellerId)}${uuidAt(i + offset)}`;
     const version = 1700000000 + i;
     const signature = createHash('sha1').update(`public_id=${public_id}&version=${version}${secret}`).digest('hex');
     return {
@@ -267,6 +270,19 @@ async function main() {
     process.env.PHOTO_DETECTION_MODEL = 'claude-zztest-override';
     check('PHOTO_DETECTION_MODEL overrides the default', getDetectionModel() === 'claude-zztest-override');
     if (savedModel === undefined) delete process.env.PHOTO_DETECTION_MODEL; else process.env.PHOTO_DETECTION_MODEL = savedModel;
+
+    // ---- Pure TS: photos-step gate (checkbox + review) ------------------
+    console.log('\nPhotos-step gate — attestation checkbox and unreviewed suggestions');
+    const good8 = { done: 8, busy: 0, missingTypes: [] as string[], unreviewedSuggestions: 0, attested: true };
+    check('everything satisfied -> may continue', photoStepGate(good8).ok);
+    check('checkbox unticked -> blocked on attestation', JSON.stringify(photoStepGate({ ...good8, attested: false }).blockers) === '["attestation"]');
+    check('a tile with unreviewed suggested boxes -> blocked even when attested', JSON.stringify(photoStepGate({ ...good8, unreviewedSuggestions: 1 }).blockers) === '["unreviewed_suggestions"]');
+    check('7 photos -> blocked on min_photos', photoStepGate({ ...good8, done: 7 }).blockers.includes('min_photos'));
+    check('missing serial_label -> blocked on required_types', photoStepGate({ ...good8, missingTypes: ['serial_label'] }).blockers.includes('required_types'));
+    check('upload in flight -> blocked', photoStepGate({ ...good8, busy: 1 }).blockers.includes('uploads_in_flight'));
+    const all = photoStepGate({ done: 0, busy: 1, missingTypes: ['powered_on'], unreviewedSuggestions: 2, attested: false });
+    check('every blocker reported at once', !all.ok && all.blockers.length === 5);
+    check('attestation copy names companies, logos and asset tags', /company names, logos, and asset tags/.test(BLUR_ATTESTATION_TEXT));
 
     // ---- Pure TS: verifyUploadedPhotos (the submit gate) ---------------
     console.log('\nverifyUploadedPhotos — submit route gate');
@@ -533,6 +549,37 @@ async function main() {
     check('owner cannot delete photo rows directly (no client grant)', !!delErr && /permission denied/i.test(delErr.message), delErr?.message);
     const { error: updErr } = await ownerClient.from('listing_photos').update({ moderation_status: 'approved' }).eq('listing_id', listingId);
     check('owner cannot self-approve moderation (no client grant)', !!updErr && /permission denied/i.test(updErr.message), updErr?.message);
+
+    // ---- Submit route: attestation enforced server-side -----------------
+    console.log('\nSubmit route — blur attestation re-checked on the server');
+    const ownerSession = await createClient(url, anonKey!, { auth: { persistSession: false } }).auth.signInWithPassword({ email: ownerUser.email, password: PASSWORD });
+    const ownerToken = ownerSession.data.session?.access_token ?? '';
+    const submitReq = (payload: Record<string, unknown>) =>
+      new Request('https://avauction.com/api/listings/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${ownerToken}` },
+        body: JSON.stringify(payload),
+      });
+    const basicBody = {
+      master_equipment_id: created.equipmentId, title: 'ZZTEST_PHOTOS_ROUTE', zip_code: '00000', listing_type: 'buy_it_now',
+      asking_price: 100, known_issues: 'None disclosed', condition_grade: 'A',
+      qc: { powers_on: true, all_components: true, flight_case: false, cosmetic_damage: 'none', known_issues: false, serviced: false, serial_confirmed: true },
+    };
+    // Fresh public_ids: the earlier submit_listing checks already stored `uploads`
+    const routeUploads = fakeUploads(ownerUser.sellerId, cfgForDb.apiSecret, 8, 100);
+    const rNoAttest = await submitPost(submitReq({ ...basicBody, photos: routeUploads }));
+    check('photos without blur_attested -> 400 blur_attestation_required', rNoAttest.status === 400 && ((await rNoAttest.json()) as any).error === 'blur_attestation_required', rNoAttest.status);
+    const rFalse = await submitPost(submitReq({ ...basicBody, photos: routeUploads, blur_attested: false }));
+    check('blur_attested: false -> 400', rFalse.status === 400);
+    const rAttested = await submitPost(submitReq({ ...basicBody, photos: routeUploads, blur_attested: true }));
+    const attestedBody = (await rAttested.json()) as any;
+    // With live Cloudinary creds the fixture signatures verify and the
+    // listing is created; with the fake secret the route stops at photo
+    // verification. Either way the attestation gate itself was passed.
+    check('blur_attested: true passes the gate', attestedBody.error !== 'blur_attestation_required' && (rAttested.status === 200 || attestedBody.error === 'invalid_photos'), { status: rAttested.status, body: attestedBody });
+    if (rAttested.status === 200 && attestedBody.listing_id) {
+      await db.from('listings').delete().eq('id', attestedBody.listing_id);
+    }
 
     // ---- Admin review: clean original beside the buyer version ----------
     console.log('\nAdmin review — signed original beside the buyer URL');

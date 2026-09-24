@@ -11,9 +11,11 @@ import {
   REJECTION_MESSAGES,
   REQUIRED_PHOTO_TYPES,
   missingRequiredTypes,
+  photoStepGate,
   validateFile,
   type BlurRegion,
   type DetectionRecord,
+  type PhotoStepState,
   type PhotoType,
   type UploadedPhoto,
 } from "@/lib/photos/rules";
@@ -90,6 +92,10 @@ export interface PhotoTile {
   // Anonymity blur: current boxes (seller-edited) + what the scan said
   blurRegions: BlurRegion[];
   detection: DetectionRecord | null; // null = scan not finished yet
+  // False while the scan's suggested boxes are waiting for the seller to
+  // open the editor and look at them; true once they have (or when the
+  // scan suggested nothing)
+  blurReviewed: boolean;
 }
 
 interface Props {
@@ -128,19 +134,36 @@ export function uploadedPhotosFromTiles(tiles: PhotoTile[]): UploadedPhoto[] {
     }));
 }
 
-// ok = enough successful uploads, every required shot type present, and
-// nothing still in flight (a Continue mid-upload would silently drop the
-// unfinished photo from the payload)
+// The photos-step gate input, derived from the tiles. Whether the seller
+// may continue is decided by photoStepGate() (lib/photos/rules.ts) with
+// the attestation checkbox the form owns.
+export function photoStepStateFromTiles(tiles: PhotoTile[], attested: boolean): PhotoStepState {
+  const done = tiles.filter((t) => t.status === "done");
+  return {
+    done: done.length,
+    busy: tiles.filter((t) => t.status === "uploading" || t.status === "queued").length,
+    missingTypes: missingRequiredTypes(done.map((t) => ({ photo_type: t.photoType }))),
+    unreviewedSuggestions: done.filter((t) => !t.blurReviewed).length,
+    attested,
+  };
+}
+
+// Count/missing summary for the progress panel (attestation excluded)
 export function photoRulesSatisfied(tiles: PhotoTile[]): {
   ok: boolean;
   count: number;
   missing: string[];
   busy: number;
+  unreviewed: number;
 } {
-  const done = tiles.filter((t) => t.status === "done");
-  const busy = tiles.filter((t) => t.status === "uploading" || t.status === "queued").length;
-  const missing = missingRequiredTypes(done.map((t) => ({ photo_type: t.photoType })));
-  return { ok: done.length >= MIN_PHOTOS && missing.length === 0 && busy === 0, count: done.length, missing, busy };
+  const st = photoStepStateFromTiles(tiles, true);
+  return {
+    ok: photoStepGate(st).ok,
+    count: st.done,
+    missing: st.missingTypes,
+    busy: st.busy,
+    unreviewed: st.unreviewedSuggestions,
+  };
 }
 
 export function PhotoUploader({ token, tiles, onChange }: Props) {
@@ -330,7 +353,9 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
       if (!t) return prev; // removed meanwhile
       // Suggested boxes become the starting set unless the seller already drew some
       const regions = t.blurRegions.length === 0 ? record.suggested : t.blurRegions;
-      return prev.map((x) => (x.key === key ? { ...x, detection: record, blurRegions: regions } : x));
+      // Suggested boxes must be looked at before the step can continue
+      const blurReviewed = record.suggested.length === 0 ? t.blurReviewed : false;
+      return prev.map((x) => (x.key === key ? { ...x, detection: record, blurRegions: regions, blurReviewed } : x));
     });
     if (record.suggested.length > 0) schedulePreview(key);
   }
@@ -413,6 +438,7 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
             uploaded: null,
             blurRegions: [],
             detection: null,
+            blurReviewed: true,
           });
           continue;
         }
@@ -429,6 +455,7 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
           uploaded: null,
           blurRegions: [],
           detection: null,
+          blurReviewed: true,
         });
       }
       if (rejected > 0) notices.push(`${rejected} file${rejected === 1 ? "" : "s"} couldn't be added.`);
@@ -542,6 +569,9 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
           {rules.count} of {MIN_PHOTOS} required photos
           {busy > 0 && <span className="text-[#888]"> · {busy} uploading</span>}
           {failed > 0 && <span className="text-[#ff4444]"> · {failed} failed</span>}
+          {rules.unreviewed > 0 && (
+            <span className="text-[#c9a227]"> · {rules.unreviewed} to review for blur</span>
+          )}
         </p>
         <ul className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[#888]">
           {PHOTO_TYPES.filter((t) => t.value !== "other").map((t) => {
@@ -607,6 +637,11 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
                     Cover
                   </span>
                 )}
+                {tile.status === "done" && !tile.blurReviewed && (
+                  <span className="absolute right-1.5 top-1.5 rounded bg-[#c9a227] px-1.5 py-0.5 text-[10px] font-bold uppercase text-[#0a0a0a]">
+                    Review blur
+                  </span>
+                )}
                 {tile.status === "uploading" && (
                   <div className="absolute inset-x-0 bottom-0 h-1 bg-[#222]">
                     <div className="h-full bg-[#22ee77]" style={{ width: `${tile.progress}%` }} />
@@ -661,10 +696,17 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
                     <button
                       type="button"
                       disabled={!tile.editorUrl}
-                      onClick={() => setEditing(tile.key)}
-                      className="rounded border border-[#2a2a2a] px-1.5 py-0.5 text-[#999] hover:text-white disabled:opacity-30"
+                      onClick={() => {
+                        patch(tile.key, { blurReviewed: true });
+                        setEditing(tile.key);
+                      }}
+                      className={`rounded border px-1.5 py-0.5 disabled:opacity-30 ${
+                        !tile.blurReviewed
+                          ? "border-[#c9a227] text-[#c9a227] hover:text-white"
+                          : "border-[#2a2a2a] text-[#999] hover:text-white"
+                      }`}
                     >
-                      Blur
+                      {tile.blurReviewed ? "Blur" : "Check blur"}
                     </button>
                   </div>
                 )}
@@ -741,7 +783,9 @@ export function PhotoUploader({ token, tiles, onChange }: Props) {
           {rules.missing.length > 0 &&
             `Still needed: ${rules.missing
               .map((m) => PHOTO_TYPES.find((t) => t.value === m)?.label ?? m)
-              .join(", ")} — pick the shot type on the matching photo.`}
+              .join(", ")} — pick the shot type on the matching photo. `}
+          {rules.unreviewed > 0 &&
+            `${rules.unreviewed} photo${rules.unreviewed === 1 ? " has" : "s have"} suggested blur boxes — open "Check blur" on each.`}
         </p>
       )}
     </div>

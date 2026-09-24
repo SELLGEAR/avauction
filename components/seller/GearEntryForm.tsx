@@ -9,10 +9,11 @@ import {
 import {
   PhotoUploader,
   photoRulesSatisfied,
+  photoStepStateFromTiles,
   uploadedPhotosFromTiles,
   type PhotoTile,
 } from "@/components/seller/PhotoUploader";
-import { MIN_PHOTOS } from "@/lib/photos/rules";
+import { BLUR_ATTESTATION_TEXT, MIN_PHOTOS, photoStepGate } from "@/lib/photos/rules";
 import {
   gradeFromQc,
   GRADE_DEFINITIONS,
@@ -75,6 +76,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   duplicate_photo: "The same photo is attached twice — remove the duplicate.",
   too_many_photos: "Too many photos on this listing.",
   photos_not_configured: "Photo uploads aren't available right now. Try again later.",
+  blur_attestation_required: "Go back to Photos and confirm you've blurred all company names, logos, and asset tags.",
   invalid_master_equipment: "The selected product is no longer available — search again.",
   master_equipment_id_or_manufacturer_model_required:
     "Select a product from the database or enter manufacturer and model.",
@@ -164,6 +166,13 @@ export function GearEntryForm({ token }: Props) {
   const [knownIssuesText, setKnownIssuesText] = useState("");
   // Photos — tiles own the upload state; position 0 is the cover
   const [photoTiles, setPhotoTiles] = useState<PhotoTile[]>([]);
+  // Anonymity attestation for the photos step; resets whenever the set of
+  // photos changes so it always refers to the photos actually submitted
+  const [blurAttested, setBlurAttested] = useState(false);
+  const photoCount = photoTiles.length;
+  useEffect(() => {
+    setBlurAttested(false);
+  }, [photoCount]);
   // Pricing
   const [listingType, setListingType] = useState<"auction" | "buy_it_now" | null>(null);
   const [askingPrice, setAskingPrice] = useState("");
@@ -276,6 +285,7 @@ export function GearEntryForm({ token }: Props) {
     setSerialNumbers("");
     setKnownIssuesText("");
     setPhotoTiles([]);
+    setBlurAttested(false);
     setListingType(null);
     setAskingPrice("");
     setReservePrice("");
@@ -313,6 +323,7 @@ export function GearEntryForm({ token }: Props) {
         listing_type: listingType,
         known_issues: knownIssuesText.trim(),
         photos: uploadedPhotosFromTiles(photoTiles),
+        blur_attested: blurAttested,
       };
       if (selection.kind === "catalog") {
         payload.master_equipment_id = selection.equipment.id;
@@ -703,16 +714,52 @@ export function GearEntryForm({ token }: Props) {
   // same rules again in submit_listing().
   if (step === 4) {
     const rules = photoRulesSatisfied(photoTiles);
+    const gate = photoStepGate(photoStepStateFromTiles(photoTiles, blurAttested));
+    const attestReady = rules.ok; // everything but the checkbox
     return (
       <div>
         {stepHeader}
+        <div className="mb-4 rounded-xl border border-[#5c4a1a] bg-[#221d0d] p-4">
+          <h2 className="text-sm font-semibold text-white">Blur anything that identifies you or your company</h2>
+          <p className="mt-1.5 text-xs leading-relaxed text-[#ddd]">
+            Company names, logos, asset tags, stencils, spray paint, stickers, handwriting.
+            Manufacturer logos and serial plates stay visible.
+          </p>
+          <p className="mt-1.5 text-xs text-[#c9a227]">
+            Why: buyers and sellers stay anonymous until payment is in escrow.
+          </p>
+          <p className="mt-1.5 text-xs text-[#999]">
+            We suggest boxes automatically — check each one, add any we missed.
+          </p>
+        </div>
         <p className="mb-4 text-sm text-[#bbb]">
           Shoot the gear the way a buyer would inspect it: front, back, both sides, powered on and
           producing output, the serial label, any damage you disclosed, and the case if included.
           Every photo is watermarked <span className="text-white">avauction.com</span> on display.
         </p>
         <PhotoUploader token={token} tiles={photoTiles} onChange={setPhotoTiles} />
-        {nav(rules.ok)}
+        <label
+          className={`mt-4 flex items-start gap-3 rounded-xl border p-4 ${
+            attestReady ? "border-[#222] bg-[#111]" : "border-[#1a1a1a] bg-[#0d0d0d] opacity-60"
+          }`}
+        >
+          <input
+            type="checkbox"
+            checked={blurAttested}
+            disabled={!attestReady}
+            onChange={(e) => setBlurAttested(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-[#22ee77]"
+          />
+          <span className="text-xs leading-relaxed text-[#bbb]">{BLUR_ATTESTATION_TEXT}</span>
+        </label>
+        {!attestReady && photoTiles.length > 0 && (
+          <p className="mt-2 text-xs text-[#666]">
+            {gate.blockers.includes("unreviewed_suggestions")
+              ? "Open \"Check blur\" on every flagged photo before confirming."
+              : "Finish the photos above before confirming."}
+          </p>
+        )}
+        {nav(gate.ok)}
       </div>
     );
   }

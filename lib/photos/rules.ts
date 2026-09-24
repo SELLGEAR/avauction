@@ -197,3 +197,39 @@ export function missingRequiredTypes(photos: { photo_type: string }[]): string[]
   const present = new Set(photos.map((p) => p.photo_type));
   return REQUIRED_PHOTO_TYPES.filter((t) => !present.has(t));
 }
+
+// ---- Photos-step gate ------------------------------------------------------
+//
+// The seller may leave the photos step only when: enough successful
+// uploads, every required shot type present, nothing still uploading,
+// every tile that received suggested blur boxes has been opened and
+// reviewed, and the anonymity attestation is ticked. Pure so the harness
+// can table-test it; the uploader derives the input from its tiles and the
+// submit route re-checks the attestation server-side.
+export const BLUR_ATTESTATION_TEXT =
+  "I've checked every photo and blurred all company names, logos, and asset tags.";
+
+export interface PhotoStepState {
+  done: number; // successful uploads
+  busy: number; // queued + uploading
+  missingTypes: string[]; // required shot types not yet assigned
+  unreviewedSuggestions: number; // tiles with suggested boxes the seller hasn't opened
+  attested: boolean;
+}
+
+export type PhotoStepBlocker =
+  | "min_photos"
+  | "required_types"
+  | "uploads_in_flight"
+  | "unreviewed_suggestions"
+  | "attestation";
+
+export function photoStepGate(s: PhotoStepState): { ok: boolean; blockers: PhotoStepBlocker[] } {
+  const blockers: PhotoStepBlocker[] = [];
+  if (s.done < MIN_PHOTOS) blockers.push("min_photos");
+  if (s.missingTypes.length > 0) blockers.push("required_types");
+  if (s.busy > 0) blockers.push("uploads_in_flight");
+  if (s.unreviewedSuggestions > 0) blockers.push("unreviewed_suggestions");
+  if (!s.attested) blockers.push("attestation");
+  return { ok: blockers.length === 0, blockers };
+}

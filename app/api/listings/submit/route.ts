@@ -74,6 +74,12 @@ export async function POST(req: Request) {
   }
   let photos: VerifiedPhotoRow[] = [];
   if (rawPhotos.length > 0) {
+    // The photos-step attestation ("I've checked every photo and blurred
+    // all company names, logos, and asset tags") is re-checked here so a
+    // client that skips the checkbox can't submit photos without it.
+    if (body.blur_attested !== true) {
+      return NextResponse.json({ error: "blur_attestation_required" }, { status: 400 });
+    }
     const cfg = getCloudinaryConfig();
     if (!cfg) {
       console.error("submit: photos present but Cloudinary env not configured");
