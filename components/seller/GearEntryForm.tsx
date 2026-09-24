@@ -7,6 +7,13 @@ import {
   type EquipmentSelection,
 } from "@/components/seller/EquipmentTypeahead";
 import {
+  PhotoUploader,
+  photoRulesSatisfied,
+  uploadedPhotosFromTiles,
+  type PhotoTile,
+} from "@/components/seller/PhotoUploader";
+import { MIN_PHOTOS } from "@/lib/photos/rules";
+import {
   gradeFromQc,
   GRADE_DEFINITIONS,
   GRADE_NAMES,
@@ -18,11 +25,11 @@ import {
 } from "@/lib/listings/gradeFromQc";
 
 // The gear entry form — multi-step, mobile-first, one thing at a time.
-// Photo upload DEFERRED (submits with photos: [], min_photos_per_listing
-// is 0); AI description DEFERRED (plain textarea). Functional-but-plain —
-// design polish is Tom's later phase.
+// Photos upload direct to Cloudinary (signed) at the photos step and are
+// verified server-side at submit; AI description DEFERRED (plain
+// textarea). Functional-but-plain — design polish is Tom's later phase.
 //
-// Steps: equipment -> QC checklist -> grade -> details -> photos (stub)
+// Steps: equipment -> QC checklist -> grade -> details -> photos
 // -> pricing + listing type -> attestation -> submit.
 // Poor / For Parts (doesn't power on) blocks at the grade step; the submit
 // route has a matching server-side guard.
@@ -61,7 +68,13 @@ const ERROR_MESSAGES: Record<string, string> = {
   known_issues_required: "The known-issues field can't be left blank.",
   asking_price_required: "Buy-it-now listings need an asking price.",
   invalid_listing_type: "Pick auction or buy-it-now.",
-  min_photos_required: "This listing needs more photos.",
+  min_photos_required: `This listing needs at least ${MIN_PHOTOS} photos.`,
+  required_photo_types_missing:
+    "A powered-on shot and a serial label shot are required — go back to Photos and set the shot type on the matching photos.",
+  invalid_photos: "One of the photos couldn't be verified — remove and re-upload it.",
+  duplicate_photo: "The same photo is attached twice — remove the duplicate.",
+  too_many_photos: "Too many photos on this listing.",
+  photos_not_configured: "Photo uploads aren't available right now. Try again later.",
   invalid_master_equipment: "The selected product is no longer available — search again.",
   master_equipment_id_or_manufacturer_model_required:
     "Select a product from the database or enter manufacturer and model.",
@@ -149,6 +162,8 @@ export function GearEntryForm({ token }: Props) {
   const [purchaseYear, setPurchaseYear] = useState("");
   const [serialNumbers, setSerialNumbers] = useState("");
   const [knownIssuesText, setKnownIssuesText] = useState("");
+  // Photos — tiles own the upload state; position 0 is the cover
+  const [photoTiles, setPhotoTiles] = useState<PhotoTile[]>([]);
   // Pricing
   const [listingType, setListingType] = useState<"auction" | "buy_it_now" | null>(null);
   const [askingPrice, setAskingPrice] = useState("");
@@ -260,6 +275,7 @@ export function GearEntryForm({ token }: Props) {
     setPurchaseYear("");
     setSerialNumbers("");
     setKnownIssuesText("");
+    setPhotoTiles([]);
     setListingType(null);
     setAskingPrice("");
     setReservePrice("");
@@ -296,7 +312,7 @@ export function GearEntryForm({ token }: Props) {
             : null,
         listing_type: listingType,
         known_issues: knownIssuesText.trim(),
-        photos: [],
+        photos: uploadedPhotosFromTiles(photoTiles),
       };
       if (selection.kind === "catalog") {
         payload.master_equipment_id = selection.equipment.id;
@@ -682,20 +698,21 @@ export function GearEntryForm({ token }: Props) {
     );
   }
 
-  // Step 4 — photos (deferred stub)
+  // Step 4 — photos. Continue is gated on the rules over successful
+  // uploads (min count + required shot types); the server enforces the
+  // same rules again in submit_listing().
   if (step === 4) {
+    const rules = photoRulesSatisfied(photoTiles);
     return (
       <div>
         {stepHeader}
-        <div className="rounded-xl border border-[#222] bg-[#111] p-4">
-          <h2 className="text-sm font-semibold text-white">Photos — coming before launch</h2>
-          <p className="mt-2 text-xs text-[#888]">
-            Guided photo capture (8 shots minimum, powered-on test, serial label) ships with the
-            mobile photo flow. During this build phase, listings submit without photos and admin
-            review covers the gap.
-          </p>
-        </div>
-        {nav(true)}
+        <p className="mb-4 text-sm text-[#bbb]">
+          Shoot the gear the way a buyer would inspect it: front, back, both sides, powered on and
+          producing output, the serial label, any damage you disclosed, and the case if included.
+          Every photo is watermarked <span className="text-white">avauction.com</span> on display.
+        </p>
+        <PhotoUploader token={token} tiles={photoTiles} onChange={setPhotoTiles} />
+        {nav(rules.ok)}
       </div>
     );
   }
@@ -787,7 +804,8 @@ export function GearEntryForm({ token }: Props) {
           <span className="font-medium text-white">{title}</span> · Grade {chosenGrade}
           {chosenGrade ? ` (${GRADE_NAMES[chosenGrade]})` : ""} ·{" "}
           {listingType === "auction" ? "Friday auction" : "Buy-it-now"} · $
-          {Number.isFinite(askingNum) ? askingNum.toLocaleString() : "—"}
+          {Number.isFinite(askingNum) ? askingNum.toLocaleString() : "—"} ·{" "}
+          {photoRulesSatisfied(photoTiles).count} photos
         </p>
       </div>
       <label className="mt-4 flex items-start gap-3 rounded-xl border border-[#222] bg-[#111] p-4">

@@ -90,6 +90,18 @@ export async function reviewListing(
       return { ok: false, error: "not_pending_review" };
     }
 
+    // Approving the listing approves its photos — admin review IS the
+    // human moderation backstop (CLAUDE.md layer 3). Without this the
+    // public photo policy, search_listings() cover lookup and the listing
+    // detail route (all filter moderation_status = 'approved') would show
+    // a live listing with no photos. Rejected photos stay rejected.
+    const { error: photoErr } = await supabase
+      .from("listing_photos")
+      .update({ moderation_status: "approved" })
+      .eq("listing_id", listingId)
+      .in("moderation_status", ["pending", "borderline"]);
+    if (photoErr) console.error("photo approval on listing approve failed:", photoErr.message);
+
     // The moment a listing goes live: saved-search alerts fire
     let alerted = 0;
     try {

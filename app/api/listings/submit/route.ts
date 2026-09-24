@@ -3,7 +3,12 @@ import { getUserFromRequest } from "@/lib/auth";
 import { rateLimit } from "@/lib/rateLimit";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { gradeFromQc, POOR_NAME, type Grade, type QcAnswers } from "@/lib/listings/gradeFromQc";
-import { qualityScore, type PhotoInput } from "@/lib/listings/qualityScore";
+import { qualityScore } from "@/lib/listings/qualityScore";
+import {
+  getCloudinaryConfig,
+  verifyUploadedPhotos,
+  type VerifiedPhotoRow,
+} from "@/lib/photos/cloudinary";
 
 // POST /api/listings/submit — seller submits gear for admin review.
 //
@@ -40,7 +45,6 @@ export async function POST(req: Request) {
   }
 
   const qc = body.qc as QcAnswers | undefined;
-  const photos = (body.photos ?? []) as PhotoInput[];
   if (
     !qc ||
     typeof qc.powers_on !== "boolean" ||
@@ -57,6 +61,29 @@ export async function POST(req: Request) {
   }
   if (typeof body.zip_code !== "string" || body.zip_code.trim() === "") {
     return NextResponse.json({ error: "zip_code_required" }, { status: 400 });
+  }
+
+  // ---- Photos: verify every upload against Cloudinary's response
+  // signature, in this seller's namespace. The client's URL is never
+  // trusted — the stored url is rebuilt from public_id as the watermark
+  // delivery URL. An empty array passes through so submit_listing() can
+  // answer min_photos_required with the live minimum.
+  const rawPhotos = body.photos ?? [];
+  if (!Array.isArray(rawPhotos)) {
+    return NextResponse.json({ error: "invalid_photos", detail: "photos must be an array" }, { status: 400 });
+  }
+  let photos: VerifiedPhotoRow[] = [];
+  if (rawPhotos.length > 0) {
+    const cfg = getCloudinaryConfig();
+    if (!cfg) {
+      console.error("submit: photos present but Cloudinary env not configured");
+      return NextResponse.json({ error: "photos_not_configured" }, { status: 503 });
+    }
+    const verified = verifyUploadedPhotos(rawPhotos, seller.id, cfg);
+    if (!verified.ok) {
+      return NextResponse.json({ error: verified.error, detail: verified.detail }, { status: 400 });
+    }
+    photos = verified.photos;
   }
 
   // ---- Resolve master equipment ----------------------------------------

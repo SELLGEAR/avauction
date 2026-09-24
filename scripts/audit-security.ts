@@ -175,6 +175,28 @@ async function main() {
     report((await probeInsert(anon, 'stolen_gear_registry', { serial_number: 'HACK' })) === 'permission_denied',
       'stolen_gear_registry: anon write denied');
 
+    // ---- 4b. listing_photos: seller-scoped, route-only writes (0036) ----
+    console.log('\n4b. listing_photos — scoped to the owning seller, no client write path');
+    const { error: phSeedErr } = await svc.from('listing_photos').insert([
+      { listing_id: activeListing, url: 'https://res.cloudinary.com/demo/zztest-audit-live.jpg', position: 0, moderation_status: 'approved' },
+      { listing_id: draftListing, url: 'https://res.cloudinary.com/demo/zztest-audit-draft.jpg', position: 0, moderation_status: 'pending' },
+    ]);
+    if (phSeedErr) throw phSeedErr;
+    const { data: anonPh } = await anon.from('listing_photos').select('listing_id').in('listing_id', [activeListing, draftListing]);
+    report((anonPh ?? []).length === 1 && anonPh![0].listing_id === activeListing,
+      'listing_photos: anon sees approved photo of active listing, not the draft\'s pending one', anonPh);
+    const authedB = await signIn(userB.email);
+    const { data: ownPh } = await authedB.from('listing_photos').select('listing_id').in('listing_id', [activeListing, draftListing]);
+    report((ownPh ?? []).length === 2, "listing_photos: owning seller reads own pending photos (grant + current_seller_id policy)", ownPh);
+    const { data: crossPh } = await authedA.from('listing_photos').select('listing_id').eq('listing_id', draftListing);
+    report((crossPh ?? []).length === 0, "listing_photos: non-owner cannot read another seller's pending photos", crossPh);
+    report((await probeInsert(authedB, 'listing_photos', { listing_id: draftListing, url: 'https://evil.example/x.jpg' })) === 'permission_denied',
+      'listing_photos: owner insert denied at grant level (submit_listing() is the only write path)');
+    const { error: phUpd } = await authedB.from('listing_photos').update({ moderation_status: 'approved' }).eq('listing_id', draftListing);
+    report(!!phUpd && /permission denied/i.test(phUpd.message), 'listing_photos: owner cannot self-approve moderation', phUpd?.message);
+    const { error: phDel } = await authedB.from('listing_photos').delete().eq('listing_id', draftListing);
+    report(!!phDel && /permission denied/i.test(phDel.message), 'listing_photos: owner delete denied at grant level', phDel?.message);
+
     // ---- 5. Own-row isolation -------------------------------------------
     console.log('\n5. Own-row isolation');
     const { data: otherUser } = await authedA.from('users').select('*').eq('id', userB.id);

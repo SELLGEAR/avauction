@@ -16,7 +16,7 @@ Nothing is unhackable but AVauction.com can be made very hard and unrewarding to
 
 **Stripe secret key** — same rules. Backend only. Never client-side. Never committed.
 
-**Cloudinary API secret** — backend only. Upload presets handle client-side uploads — the secret never touches the browser.
+**Cloudinary API secret** — backend only. Client-side uploads are SIGNED (no unsigned upload presets): `POST /api/photos` signs each upload server-side with a server-chosen `public_id` in the seller's namespace, and the submit route verifies Cloudinary's response signature before any photo row is stored. The browser only ever sees the cloud name, the (public) API key and a per-upload signature — the secret never touches the browser.
 
 ---
 
