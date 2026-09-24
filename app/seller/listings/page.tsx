@@ -6,7 +6,8 @@ import { useEffect } from "react";
 import { useMe } from "@/components/auth/useMe";
 import { SellerListingsList } from "@/components/seller/SellerListingsList";
 
-// /seller/listings — the seller's own listings grouped by review status.
+// /seller/listings — the seller's own listings, grouped by state with
+// status filters, via GET /api/seller/listings.
 // Gated like /seller/payouts: signed-out → /auth, non-seller → onboarding.
 
 function ListingsInner() {
@@ -40,7 +41,7 @@ function ListingsInner() {
     );
   }
 
-  return <SellerListingsList sellerId={me.seller.id} />;
+  return <SellerListingsList token={state.token} />;
 }
 
 export default function SellerListingsPage() {

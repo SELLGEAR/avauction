@@ -197,6 +197,15 @@ async function main() {
     const { error: phDel } = await authedB.from('listing_photos').delete().eq('listing_id', draftListing);
     report(!!phDel && /permission denied/i.test(phDel.message), 'listing_photos: owner delete denied at grant level', phDel?.message);
 
+    // ---- 4c. Identity walls around listings (seller views, Sept 24 2026)
+    console.log('\n4c. Identity walls — seller never sees bidders, buyers never see the seller');
+    const { error: bidsSellerErr, data: bidsSeller } = await authedB.from('bids').select('*').eq('listing_id', activeListing);
+    report(!bidsSellerErr && (bidsSeller ?? []).length === 0, "bids: listing owner cannot read bids on their own listing (bidder-own policy only)", bidsSellerErr?.message ?? bidsSeller);
+    const { error: embedErr, data: embed } = await anon.from('listings').select('id, sellers(business_name)').eq('id', activeListing);
+    report(!!embedErr || (embed ?? []).every((r: any) => r.sellers == null), 'listings: anon cannot embed the sellers row (no grant)', embedErr?.message ?? embed);
+    const { error: embedErrA, data: embedA } = await authedA.from('listings').select('id, sellers(business_name)').eq('id', activeListing);
+    report(!!embedErrA || (embedA ?? []).every((r: any) => r.sellers == null), 'listings: buyer cannot embed the sellers row', embedErrA?.message ?? embedA);
+
     // ---- 5. Own-row isolation -------------------------------------------
     console.log('\n5. Own-row isolation');
     const { data: otherUser } = await authedA.from('users').select('*').eq('id', userB.id);
